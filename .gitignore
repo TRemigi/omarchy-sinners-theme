@@ -1,0 +1,9 @@
+# Python bytecode
+__pycache__/
+
+# Local Claude Code project config
+.claude/
+
+# Comparison images that contain crops of the studio's poster artwork. Kept on this machine for reference and
+# never committed: the theme itself uses no studio artwork.
+research/poster-comparisons/

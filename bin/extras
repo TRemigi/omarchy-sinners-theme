@@ -1,0 +1,301 @@
+#!/bin/bash
+# Installs the extras that go with the Sinners theme. With no names it does all of them.
+#
+#   bin/extras install [extra...]     install the named extras, or every extra
+#   bin/extras uninstall [extra...]   undo the named extras, or every extra
+#   bin/extras status [extra...]      show what is installed
+#
+# Extras (always handled in this order):
+#   command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
+#   menu      add Appearance > Sinners Unlock to the Omarchy menu (shown only while Sinners is the active theme)
+#   font      switch the system monospace font to iA Writer Mono S, remembering the font it replaces
+#
+# What each one changes, and what uninstall undoes:
+#   command   the symlink in ~/.local/bin
+#   menu      one marked block in ~/.config/omarchy/extensions/omarchy-menu.jsonc, backed up before every change
+#   font      the system font, through `omarchy font set`; uninstall puts the previous font back, but only if
+#             the font is still iA Writer Mono S. If the font is missing, install adds its package
+#             (ttf-ia-writer) with `omarchy pkg add`, which asks for sudo. Uninstall never removes a package.
+#
+# Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
+#
+# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU and SINNERS_STATE_DIR override the three locations.
+set -euo pipefail
+
+THEME_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+COMMAND=omarchy-sinners-unlock
+LOCAL_BIN=${SINNERS_LOCAL_BIN:-$HOME/.local/bin}
+USER_MENU=${SINNERS_USER_MENU:-$HOME/.config/omarchy/extensions/omarchy-menu.jsonc}
+STATE_DIR=${SINNERS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-sinners-theme}
+FONT_NAME="iA Writer Mono S"
+FONT_PACKAGE=ttf-ia-writer
+FONT_STATE=$STATE_DIR/previous-font
+EXTRAS=(command menu font)
+
+fail() { echo "install: $*" >&2; exit 1; }
+
+usage() {
+  cat <<'USAGE'
+Usage: bin/extras install [extra...]     install the named extras, or every extra
+       bin/extras uninstall [extra...]   undo the named extras, or every extra
+       bin/extras status [extra...]      show what is installed
+
+Extras:
+  command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
+  menu      add Appearance > Sinners Unlock to the Omarchy menu
+  font      switch the system monospace font to iA Writer Mono S (uninstall restores the previous font)
+
+With no extras named, every extra is used. Checks for all of them run before anything is changed.
+USAGE
+}
+
+# in_list <item> <list...>: succeeds when item is one of the list. Plain loop, not grep -q, so pipefail cannot misfire.
+in_list() {
+  local wanted=$1 item
+  shift
+  for item in "$@"; do
+    [[ $item == "$wanted" ]] && return 0
+  done
+  return 1
+}
+
+# Sets SELECTED to the named extras in the fixed EXTRAS order, or to all of them when none are named.
+select_extras() {
+  local name extra
+  SELECTED=()
+  if (( $# == 0 )); then
+    SELECTED=("${EXTRAS[@]}")
+    return
+  fi
+  for name in "$@"; do
+    in_list "$name" "${EXTRAS[@]}" || fail "unknown extra '$name' (have: ${EXTRAS[*]})"
+  done
+  for extra in "${EXTRAS[@]}"; do
+    in_list "$extra" "$@" && SELECTED+=("$extra")
+  done
+  return 0
+}
+
+menu_edit() {
+  python3 -I - "$1" "$USER_MENU" <<'PY'
+import json, os, re, shutil, sys, time
+
+mode, path = sys.argv[1], sys.argv[2]
+BEGIN_PREFIX = "// >>> sinners-theme unlock switcher"   # a block is found by this prefix, whatever follows it
+BEGIN = "  " + BEGIN_PREFIX + " (managed by the theme's bin/extras; remove with: bin/extras uninstall)"
+END = "  // <<< sinners-theme unlock switcher"
+KEY = "appearance.sinners-unlock"
+ENTRY = {
+    "icon": "\U000F07F5",   # the same glyph as Appearance > Unlock
+    "label": "Sinners Unlock",
+    "aliases": ["sinners unlock"],
+    "description": "Choose among this theme's unlock screens",
+    "when": "[[ $(omarchy-theme-current) == Sinners ]]",
+    "action": "\"$(omarchy-theme-dir sinners)/bin/omarchy-sinners-unlock\"",
+}
+
+
+def strip(raw):  # mirrors MenuModel.stripJsonc in the Omarchy shell
+    raw = re.sub(r"^\s*//[^\n]*(\n|$)", "", raw, flags=re.M)
+    return re.sub(r",(\s*[}\]])", r"\1", raw)
+
+
+def parses(text):
+    try:
+        json.loads(strip(text))
+        return True
+    except ValueError:
+        return False
+
+
+def without_block(lines):
+    out, skipping = [], False
+    for line in lines:
+        if line.strip().startswith(BEGIN_PREFIX):
+            skipping = True
+        elif skipping and line.strip() == END.strip():
+            skipping = False
+        elif not skipping:
+            out.append(line)
+    return out
+
+
+existed = os.path.exists(path)
+text = open(path, encoding="utf-8").read() if existed else "{\n}\n"
+lines = text.split("\n")
+has_block = any(l.strip().startswith(BEGIN_PREFIX) for l in lines)
+
+if mode == "check":
+    state = "present" if has_block else "absent"
+    print(f"{state}{'' if parses(text) else ' (file does not parse as Omarchy menu JSONC)'}")
+    sys.exit(0)
+
+base = without_block(lines)
+if not parses("\n".join(base)):
+    sys.exit(f"{path} does not parse as Omarchy menu JSONC even without this block; fix it first, nothing was changed")
+
+if mode in ("add", "verify"):
+    closers = [i for i, l in enumerate(base) if l.strip() == "}"]
+    if not closers:
+        sys.exit(f"no closing }} found in {path}; nothing was changed")
+    if mode == "verify":
+        sys.exit(0)   # the file can take the block; write nothing
+    close = closers[-1]
+    j = close - 1
+    while j >= 0 and (base[j].strip() == "" or base[j].lstrip().startswith("//")):
+        j -= 1
+    if j >= 0 and not base[j].rstrip().endswith(("{", ",")):
+        base[j] = base[j].rstrip() + ","
+    entry = "  " + json.dumps(KEY) + ": " + json.dumps(ENTRY, ensure_ascii=False) + ","
+    base[close:close] = [BEGIN, entry, END]
+elif mode != "remove":
+    sys.exit(f"unknown mode {mode}")
+elif not has_block:
+    print("menu: not present")
+    sys.exit(0)
+
+new = "\n".join(base)
+if not parses(new):
+    sys.exit("the edited menu file would not parse; nothing was changed")
+if existed and new == text:
+    print("menu: already up to date")
+    sys.exit(0)
+
+if existed:
+    shutil.copy2(path, f"{path}.bak.{int(time.time())}")
+os.makedirs(os.path.dirname(path), exist_ok=True)
+tmp = path + ".tmp"
+open(tmp, "w", encoding="utf-8").write(new)
+os.replace(tmp, path)
+print(f"menu: {'added to' if mode == 'add' else 'removed from'} {path}")
+PY
+}
+
+
+# --- command ---------------------------------------------------------------------------------------------
+
+command_is_ours() { [[ -L $LOCAL_BIN/$COMMAND && $(readlink -f "$LOCAL_BIN/$COMMAND") == "$THEME_DIR/bin/$COMMAND" ]]; }
+
+command_check() {
+  local target=$LOCAL_BIN/$COMMAND
+  if [[ -e $target && ! -L $target ]]; then
+    fail "$target exists and is not a symlink; not touching it"
+  fi
+}
+
+command_install() {
+  mkdir -p "$LOCAL_BIN"
+  ln -sfn "$THEME_DIR/bin/$COMMAND" "$LOCAL_BIN/$COMMAND"
+  echo "command: $LOCAL_BIN/$COMMAND -> $THEME_DIR/bin/$COMMAND"
+}
+
+command_uninstall() {
+  local target=$LOCAL_BIN/$COMMAND
+  if command_is_ours; then
+    rm "$target"
+    echo "command: removed $target"
+  elif [[ -e $target || -L $target ]]; then
+    echo "command: $target is not this theme's link; left alone"
+  else
+    echo "command: not installed"
+  fi
+}
+
+command_status() {
+  local target=$LOCAL_BIN/$COMMAND
+  if command_is_ours; then
+    echo "command: installed ($target)"
+  elif [[ -e $target || -L $target ]]; then
+    echo "command: $target exists but is not this theme's link"
+  else
+    echo "command: not installed"
+  fi
+}
+
+# --- menu ------------------------------------------------------------------------------------------------
+
+menu_check()     { menu_edit verify; }
+menu_install()   { menu_edit add; }
+menu_uninstall() { menu_edit remove; }
+menu_status()    { echo "menu: $(menu_edit check)"; }
+
+# --- font ------------------------------------------------------------------------------------------------
+
+# The same test omarchy-font-set uses before it will switch to a font.
+font_present() { fc-list | grep -Fqi -- "$FONT_NAME"; }
+
+font_check() {
+  command -v omarchy >/dev/null || fail "omarchy not found on PATH; cannot set the font"
+  if ! font_present && ! pacman -Si "$FONT_PACKAGE" >/dev/null 2>&1; then
+    fail "$FONT_NAME is not installed and $FONT_PACKAGE is not in your package repositories"
+  fi
+}
+
+font_install() {
+  local current
+  current=$(omarchy font current)
+  if [[ $current == "$FONT_NAME" ]]; then
+    echo "font: already $FONT_NAME"
+    return
+  fi
+  if ! font_present; then
+    echo "font: installing $FONT_PACKAGE (asks for sudo)"
+    omarchy pkg add "$FONT_PACKAGE"
+  fi
+  omarchy font set "$FONT_NAME" || fail "omarchy could not switch to $FONT_NAME; the font was not changed"
+  # Remember the font that was replaced, but only once the switch has worked, so a failure leaves no stale record.
+  # This point is reached only when the font actually changed, so installing twice never overwrites the saved
+  # font with iA Writer Mono S itself.
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$current" >"$FONT_STATE"
+  echo "font: $FONT_NAME (was: $current); restart open terminals to see it"
+}
+
+font_uninstall() {
+  local previous current
+  if [[ ! -f $FONT_STATE ]]; then
+    echo "font: nothing to restore"
+    return
+  fi
+  previous=$(<"$FONT_STATE")
+  current=$(omarchy font current)
+  if [[ $current == "$FONT_NAME" ]]; then
+    omarchy font set "$previous" || fail "could not restore '$previous'; it is saved in $FONT_STATE"
+    rm -f "$FONT_STATE"
+    echo "font: restored $previous"
+  else
+    rm -f "$FONT_STATE"
+    echo "font: current font is $current, not $FONT_NAME; left alone"
+  fi
+}
+
+font_status() {
+  local current previous=""
+  current=$(omarchy font current)
+  [[ -f $FONT_STATE ]] && previous=$(<"$FONT_STATE")
+  if [[ $current == "$FONT_NAME" ]]; then
+    echo "font: $FONT_NAME is active${previous:+ (uninstall restores $previous)}"
+  elif font_present; then
+    echo "font: not active (current: $current; $FONT_NAME is installed)"
+  else
+    echo "font: not active (current: $current; $FONT_NAME is not installed, install would add $FONT_PACKAGE)"
+  fi
+}
+
+# --- dispatch --------------------------------------------------------------------------------------------
+
+run_all() {
+  local action=$1 extra
+  shift
+  select_extras "$@"
+  if [[ $action == install ]]; then
+    for extra in "${SELECTED[@]}"; do "${extra}_check"; done   # every check first, so a refusal changes nothing
+  fi
+  for extra in "${SELECTED[@]}"; do "${extra}_$action"; done
+}
+
+case "${1:-}" in
+  install | uninstall | status) action=$1; shift; run_all "$action" "$@" ;;
+  -h | --help | help | "")      usage ;;
+  *)                            usage >&2; exit 1 ;;
+esac

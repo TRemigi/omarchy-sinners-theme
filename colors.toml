@@ -1,0 +1,40 @@
+# Sinners - an Omarchy theme from Ryan Coogler's "Sinners" (2025) key art.
+# Palette v0.1: k-means sampling of the official press-kit main art and teaser art.
+# Slots marked [derived] are extrapolated, because the art has no green, cyan or magenta.
+# Contrast ratios are against background #1A0905.
+
+mode = "dark"
+
+accent    = "#FB7407"   # main art, sun-edge orange (7.0:1)
+selection = "#5A1F0F"   # main art, deep rust; selected rows and meters
+muted     = "#956362"   # teaser art, mauve; ANSI bright black, comments (3.9:1)
+
+background         = "#1A0905"   # main art, darkest cluster; ANSI black
+dark_background    = "#140704"   # 25% toward black, the engine default
+darker_background  = "#050102"   # teaser art, void black
+lighter_background = "#371309"   # main art, scorched brown; surfaces and cursorline
+
+foreground        = "#E8C48C"   # derived, teaser cream mixed with main-art sand; body text and ANSI white (11.7:1)
+dark_foreground   = "#956362"   # teaser art, mauve
+light_foreground  = "#BF9F71"   # derived, foreground mixed 20% toward background
+bright_foreground = "#F8EFD9"   # teaser art, title cream; cursor and ANSI bright white (16.9:1)
+
+red     = "#E91A02"   # teaser art (4.3:1)
+yellow  = "#F9BD06"   # main art, sun gold (11.3:1)
+orange  = "#FB7407"   # main art, sun-edge orange
+green   = "#9AA32B"   # [derived] neon title yellow shifted toward olive; PROVISIONAL (7.1:1)
+cyan    = "#4E8F94"   # [derived] teaser steel blue shifted toward teal (5.2:1)
+blue    = "#5B93AB"   # [derived] teaser steel blue #3E6E82, lightened (5.7:1)
+magenta = "#B5686A"   # [derived] teaser mauve, more saturated (4.8:1)
+brown   = "#7A3C20"   # main art, burnt umber
+
+bright_red     = "#F8502D"   # [derived] red, lightened (5.7:1)
+bright_yellow  = "#F7F104"   # main art, neon title yellow (16.2:1)
+bright_green   = "#B7C03A"   # [derived] PROVISIONAL (9.8:1)
+bright_cyan    = "#78B7BC"   # [derived] (8.6:1)
+bright_blue    = "#7FB2C6"   # [derived] (8.4:1)
+bright_magenta = "#D6918C"   # [derived] (7.6:1)
+
+# Window borders: the sun's gradient (gold to orange to red). Inactive is rust, not gray.
+hyprland_active_border   = "rgba(F9BD06ee) rgba(FB7407ee) rgba(E91A02ee) 45deg"
+hyprland_inactive_border = "rgba(5A1F0Faa)"

@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# omarchy:summary=Pick the Sinners theme's disk-unlock (Plymouth) screen
+# omarchy:args=[pick | set <name> [--dry-run] | list | current]
+# omarchy:examples=omarchy-sinners-unlock | omarchy-sinners-unlock set eyes | omarchy-sinners-unlock current
+
+# The theme ships several unlock screens: unlock.png (named "sun" here) and unlock-<name>.png, each with
+# a preview-unlock[-<name>].png. This opens Omarchy's own image picker over them, the way Appearance >
+# Unlock does for whole themes, then applies the choice with omarchy-plymouth-set, which needs sudo, so the
+# pick runs it in a floating terminal. Colors come from this theme's colors.toml, as in
+# omarchy-plymouth-set-by-theme. Variants are discovered from the files, so adding one needs no change here.
+
+set -euo pipefail
+
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+THEME_DIR=$(dirname "$(dirname "$SELF")")
+INSTALLED_LOGO=/usr/share/plymouth/themes/omarchy/logo.png
+PREVIEW_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/sinners-unlock/previews"
+
+usage() {
+  cat <<'USAGE'
+Usage: omarchy-sinners-unlock [pick | set <name> [--dry-run] | list | current]
+
+  pick (default)   open the picker, then apply the choice in a floating terminal
+  set <name>       apply a variant directly (asks for sudo in this terminal)
+                   --dry-run prints the omarchy-plymouth-set command instead of running it
+  list             list the variants
+  current          show which variant is installed, or "none" when the boot screen is not one of these
+USAGE
+}
+
+fail() { echo "omarchy-sinners-unlock: $*" >&2; exit 1; }
+
+# Variant names: "sun" for unlock.png, and <name> for each unlock-<name>.png that has a matching preview.
+variants() {
+  local file name
+  if [[ -f $THEME_DIR/unlock.png && -f $THEME_DIR/preview-unlock.png ]]; then echo sun; fi
+  for file in "$THEME_DIR"/unlock-*.png; do
+    [[ -e $file ]] || continue
+    name=${file##*/unlock-}
+    name=${name%.png}
+    [[ $name =~ ^[A-Za-z0-9_-]+$ && $name != sun ]] || continue
+    if [[ -f $THEME_DIR/preview-unlock-$name.png ]]; then echo "$name"; fi
+  done
+  return 0   # a skipped stray file must not make the whole listing "fail" under pipefail
+}
+
+logo_for()    { if [[ $1 == sun ]]; then echo "$THEME_DIR/unlock.png"; else echo "$THEME_DIR/unlock-$1.png"; fi; }
+preview_for() { if [[ $1 == sun ]]; then echo "$THEME_DIR/preview-unlock.png"; else echo "$THEME_DIR/preview-unlock-$1.png"; fi; }
+
+is_variant() {   # a plain loop, not grep -q: grep exiting early can make the writer fail under pipefail
+  local candidate
+  while read -r candidate; do
+    [[ $candidate == "$1" ]] && return 0
+  done < <(variants)
+  return 1
+}
+
+# omarchy-plymouth-set installs the chosen logo byte-for-byte, so matching it back names the variant.
+current() {
+  local name
+  while read -r name; do
+    if cmp -s "$(logo_for "$name")" "$INSTALLED_LOGO" 2>/dev/null; then
+      echo "$name"
+      return
+    fi
+  done < <(variants)
+  echo none
+}
+
+apply() {
+  local name=$1 dry_run=${2:-} logo bg text
+  is_variant "$name" || fail "unknown unlock '$name' (have: $(variants | paste -sd' '))"
+  logo=$(logo_for "$name")
+  bg=$(omarchy-theme-color --file "$THEME_DIR/colors.toml" background)
+  text=$(omarchy-theme-color --file "$THEME_DIR/colors.toml" foreground)
+  if [[ $dry_run == --dry-run ]]; then
+    printf 'omarchy-plymouth-set %q %q %q\n' "$bg" "$text" "$logo"
+    return
+  fi
+  exec omarchy-plymouth-set "$bg" "$text" "$logo"
+}
+
+pick() {
+  local name selected="" chosen
+
+  [[ -n $PREVIEW_DIR && $PREVIEW_DIR == */sinners-unlock/previews ]] || fail "refusing to use preview dir '$PREVIEW_DIR'"
+  rm -rf "$PREVIEW_DIR"
+  mkdir -p "$PREVIEW_DIR"
+  while read -r name; do
+    ln -s "$(preview_for "$name")" "$PREVIEW_DIR/$name.png"
+  done < <(variants)
+  [[ -n $(ls -A "$PREVIEW_DIR") ]] || fail "no unlock variants found in $THEME_DIR"
+
+  name=$(current)
+  [[ -e $PREVIEW_DIR/$name.png ]] && selected=$PREVIEW_DIR/$name.png
+
+  # Cancelling the picker prints nothing; like Omarchy's own Appearance > Unlock action, that is a no-op.
+  chosen=$(omarchy-menu-images --print-name --show-labels --selected "$selected" "$PREVIEW_DIR") || true
+  [[ -n $chosen ]] || exit 0
+  omarchy-launch-floating-terminal-with-presentation "$(printf %q "$SELF") set $(printf %q "$chosen")"
+}
+
+case "${1:-pick}" in
+  pick)             pick ;;
+  set)              [[ -n ${2:-} ]] || { usage >&2; exit 1; }; apply "$2" "${3:-}" ;;
+  list)             variants ;;
+  current)          current ;;
+  -h | --help | help) usage ;;
+  *)                usage >&2; exit 1 ;;
+esac

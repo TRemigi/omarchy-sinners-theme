@@ -1,0 +1,50 @@
+# SUPERSEDED by colors.toml, which uses Omarchy's real key names and is the source of truth.
+# Kept as the research record: how each color was chosen and what is still open.
+#
+# Sinners (2025, dir. Ryan Coogler) - palette v0.1
+# Derived by k-means sampling of the official press-kit "main art" and "teaser art"
+# (https://www.sinnersmovie.com/toolkit/). The press kit page itself gives no color values.
+#
+# Decisions so far:
+#   - background is #1A0905 (main-art darkest cluster). Locked.
+#   - single dark theme only: no light variant, no teaser (blue-black) variant.
+#   - green is provisional (see notes).
+#
+# Notes:
+#   [derived] = not sampled from the art; extrapolated because the art has no green/cyan/magenta.
+#   Contrast ratios are against the background.
+
+background = "#1A0905"   # main art, darkest cluster
+foreground = "#E8C48C"   # derived: teaser cream + main-art sand mix (11.7:1); chosen over #D9C7A3 to warm default text
+accent     = "#FB7407"   # main art, sun-edge orange (7.0:1)
+cursor     = "#FB7407"
+
+surface    = "#371309"   # main art; cursorline / selection background
+border     = "#5A1F0F"   # main art; borders, inactive elements
+
+# Extra UI hues sampled from the art (not ANSI slots)
+burnt_orange = "#EA4705" # teaser
+copper       = "#B1501B" # main
+oxblood      = "#840D02" # teaser
+
+# ANSI 0-15
+color0  = "#1A0905"  # black        (= background)
+color1  = "#E91A02"  # red          teaser (4.3:1, below 4.5 - acceptable for errors)
+color2  = "#9AA32B"  # green        [derived] title yellow hue-shifted; PROVISIONAL
+color3  = "#F9BD06"  # yellow       main, sun gold
+color4  = "#5B93AB"  # blue         [derived] teaser steel blue #3E6E82, lightened
+color5  = "#B5686A"  # magenta      [derived] teaser mauve #956362, more saturated
+color6  = "#4E8F94"  # cyan         [derived] steel blue shifted toward teal
+color7  = "#E8C48C"  # white        (= foreground)
+color8  = "#956362"  # bright black teaser mauve (3.9:1 - comments, below 4.5)
+color9  = "#F8502D"  # bright red   [derived]
+color10 = "#B7C03A"  # bright green [derived]; PROVISIONAL
+color11 = "#F7F104"  # bright yellow main, neon title yellow
+color12 = "#7FB2C6"  # bright blue  [derived]
+color13 = "#D6918C"  # bright magenta [derived]
+color14 = "#78B7BC"  # bright cyan  [derived]
+color15 = "#F8EFD9"  # bright white (= bright_foreground; teaser title cream, 16.9:1)
+
+# Open items
+#   - green: revisit once the theme is running in a real terminal/editor.
+#   - color1 (4.3:1) and color8 (3.9:1) are below 4.5:1; check legibility in use.
