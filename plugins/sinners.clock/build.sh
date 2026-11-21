@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate the clock's files: Omarchy's own clock widget (four files), plus patches/0001-gold.patch on BarWidget.qml.
+# Regenerate the clock's files: Omarchy's own clock widget (four files), plus patches/0001-clock.patch on BarWidget.qml.
 #
 #   ./build.sh           copy the installed widget and apply the patch (fails if the patch no longer fits)
 #   ./build.sh --check   say whether the installed widget still matches what UPSTREAM records, and change nothing
@@ -32,6 +32,6 @@ if [[ ${1:-} == --check ]]; then
 fi
 
 for f in "${FILES[@]}"; do cp "$SRC/$f" .; done
-patch -p1 --quiet < patches/0001-gold.patch
+patch -p1 --quiet < patches/0001-clock.patch
 { echo "omarchy $(version)"; echo "# sha256 of the stock files these were built from"; now_hashes; } > UPSTREAM
-echo "Built the clock from Omarchy $(version) with patches/0001-gold.patch."
+echo "Built the clock from Omarchy $(version) with patches/0001-clock.patch."

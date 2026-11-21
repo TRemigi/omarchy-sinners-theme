@@ -18,11 +18,14 @@
 #   workspaces  link the Sinners Workspaces plugin (plugins/sinners.workspaces), which shows the shown workspace as its number
 #             in a painted cream square, and enable it. It is Omarchy's workspaces widget, copied and patched, and it takes the built-in's
 #             place while enabled. Meant for the bar below, but it works on any bar.
-#   clock     link the Sinners Clock plugin (plugins/sinners.clock), which draws the clock in the sun's gold, and enable it. It is
+#   clock     link the Sinners Clock plugin (plugins/sinners.clock), which draws the clock in the sun's gold and in a flared display face, and enable it. It is
 #             Omarchy's clock widget, copied and patched, and it takes the built-in's place while enabled.
 #   bar       link the Sinners Bar plugin (plugins/sinners.bar), a bar of weathered wooden boards, and switch the
 #             bar to it with `omarchy bar use`. It is Omarchy's own bar with a board behind each section, and it
 #             replaces the bar you have; uninstall switches back to the one you had.
+#   bar-light the same, for plugins/sinners.bar-light: the bar on light boards, the warm grey wood of the film's sign, with dark
+#             lettering. Either bar can be installed and you can go from one to the other; uninstall switches back to the bar you
+#             had before either.
 #
 # What each one changes, and what uninstall undoes:
 #   command   the symlink in ~/.local/bin
@@ -43,6 +46,7 @@
 #   bar       a symlink in ~/.config/omarchy/plugins and the bar named in shell.json (bar.id), through
 #             `omarchy bar use`. The bar you had is remembered, and uninstall switches back to it (only if the
 #             bar is still this one) before it removes the link. Its widgets and their layout are not touched.
+#   bar-light the same, for the light bar. The bar you had is remembered only if it is not one of ours.
 #
 # Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
 #
@@ -62,9 +66,10 @@ FONT_PACKAGE=ttf-ia-writer
 FONT_STATE=$STATE_DIR/previous-font
 BAR_STATE=$STATE_DIR/previous-bar
 BAR_ID=sinners.bar
+BAR_LIGHT_ID=sinners.bar-light
 BAR_DEFAULT=omarchy.bar
 EXTRAS=(command menu font embers)   # what a bare `install` does
-OPT_IN=(toasts workspaces clock bar)    # only when named
+OPT_IN=(toasts workspaces clock bar bar-light)   # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -82,9 +87,10 @@ Extras:
 
 Not part of "every extra"; name it to use it:
   toasts    replace Omarchy's notification daemon with a copy that burns toasts away into ash
-  workspaces  show the shown workspace as its number in a painted cream square, with a copy of Omarchy's workspaces widget
-  clock     draw the clock in the sun's gold, with a copy of Omarchy's clock widget
+  workspaces  show the shown workspace as its number in a painted square, with a copy of Omarchy's workspaces widget (it dresses to suit either bar)
+  clock     draw the clock in a flared display face and a colour of its own, with a copy of Omarchy's clock widget (it dresses to suit either bar)
   bar       replace Omarchy's bar with a bar of weathered wooden boards (a top or bottom bar; a side bar looks stock)
+  bar-light the same on light boards, the warm grey wood of the film's sign, with dark lettering
 
 With no extras named, every extra above the blank line is used. Checks for all of them run before anything is changed.
 USAGE
@@ -472,7 +478,7 @@ workspaces_status()    { plugin_status workspaces sinners.workspaces; }
 # the built-in back, as with the workspaces.
 
 clock_check() {
-  plugin_check sinners.clock BarWidget.qml Panel.qml Model.js WallClock.qml
+  plugin_check sinners.clock BarWidget.qml Panel.qml Model.js WallClock.qml fonts/CinzelDecorative-Black.ttf fonts/OFL.txt
   command -v jq >/dev/null || fail "jq is needed to check for another clock plugin"
   local other
   other=$(other_clones omarchy.clock sinners.clock)
@@ -487,16 +493,24 @@ clock_install() {
 clock_uninstall() { plugin_uninstall clock sinners.clock "Omarchy's own clock is back; if it does not return at once, run: omarchy restart shell"; }
 clock_status()    { plugin_status clock sinners.clock; }
 
-# --- bar ---------------------------------------------------------------------------------------------------
+# --- bars ------------------------------------------------------------------------------------------------
 #
 # A bar is a plugin too, but it is chosen, not enabled: `omarchy bar use <id>` writes bar.id in shell.json, and `omarchy
 # bar use omarchy.bar` goes back to the built-in. So the bar you had is remembered, as the font is, and put back.
+#
+# There are two bars, `bar` (sinners.bar, dark boards) and `bar-light` (sinners.bar-light, light boards). Either can be
+# installed, and you can go from one to the other. What is remembered is the bar you had before either: it is saved only when
+# the bar being replaced is not one of ours, and uninstall puts it back whichever of ours is in use.
+
+OUR_BARS=("$BAR_ID" "$BAR_LIGHT_ID")
 
 current_bar() { jq -r '.bar.id // "'"$BAR_DEFAULT"'"' "$SHELL_JSON" 2>/dev/null || echo "$BAR_DEFAULT"; }
 
-bar_check() {
+# bar_check_id <bar id> <name for messages>
+bar_check_id() {
+  local id=$1
   command -v jq >/dev/null || fail "jq is needed to read which bar is in use"
-  plugin_check "$BAR_ID" Bar.qml BarModel.js WoodBoard.qml WornPaint.qml shaders/wear.frag.qsb wood/left-body.png wood/left-lcap.png wood/left-rcap.png \
+  plugin_check "$id" Bar.qml BarModel.js WoodBoard.qml WornPaint.qml shaders/wear.frag.qsb wood/left-body.png wood/left-lcap.png wood/left-rcap.png \
     wood/center-body.png wood/center-lcap.png wood/center-rcap.png wood/right-body.png wood/right-lcap.png wood/right-rcap.png
   local pos
   pos=$(jq -r '.bar.position // "top"' "$SHELL_JSON" 2>/dev/null || echo top)
@@ -506,74 +520,88 @@ bar_check() {
   return 0
 }
 
-bar_install() {
-  local previous
+bar_install_id() {
+  local id=$1 previous
   previous=$(current_bar)
   mkdir -p "$PLUGINS_DIR"
-  ln -sfn "$(plugin_src "$BAR_ID")" "$(plugin_dst "$BAR_ID")"
-  echo "bar: $(plugin_dst "$BAR_ID") -> $(plugin_src "$BAR_ID")"
+  ln -sfn "$(plugin_src "$id")" "$(plugin_dst "$id")"
+  echo "bar: $(plugin_dst "$id") -> $(plugin_src "$id")"
   if shell_running; then omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; fi
-  if [[ $previous == "$BAR_ID" ]]; then
-    echo "bar: already the bar in use"
+  if [[ $previous == "$id" ]]; then
+    echo "bar: $id is already the bar in use"
     return
   fi
-  if omarchy bar use "$BAR_ID" >/dev/null 2>&1; then
-    # Remember the bar that was replaced, but only once the switch has worked, so a failure leaves no stale record. Installing
-    # twice never overwrites it with this bar itself.
-    mkdir -p "$STATE_DIR"
-    printf '%s\n' "$previous" >"$BAR_STATE"
-    echo "bar: now using $BAR_ID (was: $previous). If the bar looks unchanged, run: omarchy restart shell"
+  if omarchy bar use "$id" >/dev/null 2>&1; then
+    # Remember the bar that was replaced, but only once the switch has worked, so a failure leaves no stale record, and only if it is
+    # not one of ours: going from one of our bars to the other must not make the other the bar to go back to.
+    if ! in_list "$previous" "${OUR_BARS[@]}"; then
+      mkdir -p "$STATE_DIR"
+      printf '%s\n' "$previous" >"$BAR_STATE"
+      echo "bar: now using $id (was: $previous). If the bar looks unchanged, run: omarchy restart shell"
+    else
+      echo "bar: now using $id (was: $previous, one of ours; uninstall still goes back to the bar you had before). If the bar looks unchanged, run: omarchy restart shell"
+    fi
   else
-    echo "bar: linked, but could not switch to it; run: omarchy bar use $BAR_ID" >&2
+    echo "bar: linked, but could not switch to it; run: omarchy bar use $id" >&2
   fi
 }
 
-bar_uninstall() {
-  local dst previous current
-  dst=$(plugin_dst "$BAR_ID")
+bar_uninstall_id() {
+  local id=$1 dst previous current
+  dst=$(plugin_dst "$id")
   current=$(current_bar)
   previous=$BAR_DEFAULT
   [[ -f $BAR_STATE ]] && previous=$(<"$BAR_STATE")
-  if [[ $current == "$BAR_ID" ]]; then
+  if [[ $current == "$id" ]]; then
     # Switch away first: removing the link of the bar in use would leave the shell to fall back by itself.
-    if [[ $previous == "$BAR_DEFAULT" || $previous == "$BAR_ID" ]]; then
+    if [[ $previous == "$BAR_DEFAULT" ]] || in_list "$previous" "${OUR_BARS[@]}"; then
       omarchy bar reset >/dev/null 2>&1 || fail "could not switch back to the built-in bar; run: omarchy bar reset (nothing was removed)"
       echo "bar: back to the built-in bar"
     else
       omarchy bar use "$previous" >/dev/null 2>&1 || fail "could not switch back to $previous; run: omarchy bar use $previous (nothing was removed)"
       echo "bar: back to $previous"
     fi
+    rm -f "$BAR_STATE"                                  # the bar you had has been put back, so there is nothing left to remember
   else
-    echo "bar: the bar in use is $current, not $BAR_ID; not switching"
+    echo "bar: the bar in use is $current, not $id; not switching"
   fi
-  rm -f "$BAR_STATE"
-  if plugin_is_ours "$BAR_ID"; then
+  if plugin_is_ours "$id"; then
     rm "$dst"
     if shell_running; then omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; fi
     echo "bar: removed $dst"
   elif [[ -e $dst || -L $dst ]]; then
     echo "bar: $dst is not this theme's link; left alone"
   else
-    echo "bar: not installed"
+    echo "bar: $id is not installed"
   fi
 }
 
-bar_status() {
-  local current
-  if plugin_is_ours "$BAR_ID"; then
+bar_status_id() {
+  local id=$1 current
+  if plugin_is_ours "$id"; then
     current=$(current_bar)
-    if [[ $current == "$BAR_ID" ]]; then
-      echo "bar: linked and in use ($(plugin_dst "$BAR_ID"))"
+    if [[ $current == "$id" ]]; then
+      echo "bar: $id linked and in use ($(plugin_dst "$id"))"
       [[ -f $BAR_STATE ]] && echo "        uninstall switches back to $(<"$BAR_STATE")"
     else
-      echo "bar: linked, but the bar in use is $current; run: omarchy bar use $BAR_ID"
+      echo "bar: $id linked, but the bar in use is $current; run: omarchy bar use $id"
     fi
-  elif [[ -e $(plugin_dst "$BAR_ID") || -L $(plugin_dst "$BAR_ID") ]]; then
-    echo "bar: $(plugin_dst "$BAR_ID") exists but is not this theme's link"
+  elif [[ -e $(plugin_dst "$id") || -L $(plugin_dst "$id") ]]; then
+    echo "bar: $(plugin_dst "$id") exists but is not this theme's link"
   else
-    echo "bar: not installed"
+    echo "bar: $id is not installed"
   fi
 }
+
+bar_check()      { bar_check_id "$BAR_ID"; }
+bar_install()    { bar_install_id "$BAR_ID"; }
+bar_uninstall()  { bar_uninstall_id "$BAR_ID"; }
+bar_status()     { bar_status_id "$BAR_ID"; }
+
+bar_light_check()      { bar_check_id "$BAR_LIGHT_ID"; }
+bar_light_install()    { bar_install_id "$BAR_LIGHT_ID"; }
+bar_light_uninstall()  { bar_uninstall_id "$BAR_LIGHT_ID"; }
+bar_light_status()     { bar_status_id "$BAR_LIGHT_ID"; }
 
 # --- dispatch --------------------------------------------------------------------------------------------
 
@@ -582,9 +610,9 @@ run_all() {
   shift
   select_extras "$@"
   if [[ $action == install ]]; then
-    for extra in "${SELECTED[@]}"; do "${extra}_check"; done   # every check first, so a refusal changes nothing
+    for extra in "${SELECTED[@]}"; do "${extra//-/_}_check"; done   # every check first, so a refusal changes nothing
   fi
-  for extra in "${SELECTED[@]}"; do "${extra}_$action"; done
+  for extra in "${SELECTED[@]}"; do "${extra//-/_}_$action"; done
 }
 
 case "${1:-}" in

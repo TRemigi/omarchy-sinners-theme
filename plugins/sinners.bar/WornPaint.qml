@@ -1,9 +1,10 @@
 import QtQuick
 
-// Chipped, grainy paint on the lettering of one board of the bar. Put it after the board's widgets, as a sibling: it covers the board
-// and draws the board's own picture over the widgets in small flakes (shaders/wear.frag). On bare board that is the board over
-// itself, which changes nothing; over a letter it puts the board back on top of the lettering, as a chip where the paint has
-// worn off, and, a little, where the wood is grooved, so the lettering shows the grain's dark lines as paint over wood does.
+// Grainy paint on the lettering of one board of the bar. Put it after the board's widgets, as a sibling: it covers the board and
+// draws the board's own picture over the widgets (shaders/wear.frag). On bare board that is the board over itself, which changes
+// nothing; over a letter it puts the board back, a little, where the wood is grooved, so the lettering shows the grain's dark lines
+// as paint over wood does. It can also put the board back in small flakes, as chips where the paint has worn off: strength, which
+// is off.
 //
 // Nothing here redraws or hides a widget, so their text and icons are exactly as the shell draws them, and clicks, hover and
 // tooltips never see this: it takes no input. If the shader cannot run, it draws nothing, and the lettering is merely unworn.
@@ -12,7 +13,7 @@ Item {
 
   property Item board: null          // the WoodBoard this is over
   property real seed: 1              // where in the flake noise this board starts, so boards do not wear alike
-  property real strength: 0.4       // 0 is no flakes; 1 puts the board back over a flake completely
+  property real strength: 0         // chips: 0 is none (shipped); up to 1 puts the board back over a flake completely
   property real grain: 0.95          // 0 is no grain in the lettering; 1 lets the wood's dark grooves through completely
 
   x: board ? board.x : 0

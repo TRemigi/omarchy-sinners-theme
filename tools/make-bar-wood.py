@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Draws the boards of the Sinners bar: charred cypress with some of its oxblood paint left on it, as transparent PNGs.
+"""Draws the boards of the two Sinners bars as transparent PNGs: "dark" (plugins/sinners.bar), charred cypress with some of its
+oxblood paint left on it, and "light" (plugins/sinners.bar-light), the light warm-grey wood of the film's sign.
 
-usage: make-bar-wood.py [outdir]        (default: plugins/sinners.bar/wood)
+usage: make-bar-wood.py [plugins-dir]        (default: this repo's plugins/)
 
 Needs numpy, scipy and Pillow, which Omarchy does not install. In a throwaway virtualenv:
 
@@ -14,8 +15,9 @@ It is deterministic: the same code writes the same files.
 Original work: the wood, paint and nails are procedural (tools/woodlib.py). No photograph or film frame is sampled or
 traced. See "A bar of boards" in the README.
 
-It also draws the painted cream square behind the shown workspace (plugins/sinners.workspaces/square-filled.png and
-square-outline.png): a patch and a brushed outline of paint in the theme's cream, 20 x 24 logical px.
+It also draws the painted squares behind the shown workspace (plugins/sinners.workspaces/): square-filled.png and
+square-outline.png, a patch and a brushed outline of paint in the theme's cream, for the dark bar; and square-red.png, a patch in
+the red of the sign's lettering, for the light bar. 20 x 24 logical px.
 
 Each board is three files, because a board's length depends on the widgets on it:
   <name>-body.png   a long strip of wood and paint, cropped by the bar to the board's length
@@ -30,7 +32,7 @@ from PIL import Image
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from woodlib import SS, smooth, anis, make_wood, paint, nail, shade, DARK, BROWN
+from woodlib import SS, smooth, anis, make_wood, paint, nail, shade, lut, DARK, BROWN
 
 SURFACE, TOP, BOARD_H = 36, 3, 30          # logical px; must match Bar.qml's stripSize and WoodBoard.qml
 CAP_W = 28                                  # logical px of end cap, the last 16 of which fade into the body
@@ -50,19 +52,43 @@ def theme_colour(key):
 CREAM = theme_colour("foreground")          # the shown workspace's square: the theme's cream, the same as the lettering (not the brighter title cream)
 SQ_W, SQ_H = 20, 24                         # logical px; must match plugins/sinners.workspaces' patch
 BOARDS = {"left": (1000, 101), "center": (1000, 202), "right": (700, 303)}   # name: (body width logical, seed)
+# A board's own look, over the shared one. tone scales its brightness. weather (0 to 1) is how weathered it is: fewer cracks and
+# a smoother surface below 1. The clock's board is lighter and calmer than the others, so its decorative lettering reads.
+LOOK = {"center": dict(tone=1.30, weather=0.35)}
+DEFAULT_LOOK = dict(tone=1.0, weather=1.0)
+
+# The sign's wood: five tones, the 5th, 25th, 50th, 75th and 95th luminance percentiles of the wood in the film's Club Juke sign. Only these
+# colours were taken from it (see README), not its picture.
+SIGN_WOOD = lut([(q, tuple(c / 255 for c in rgb)) for q, rgb in
+                 [(0.05, (106, 85, 72)), (0.25, (149, 127, 113)), (0.50, (173, 154, 139)), (0.75, (192, 174, 160)), (0.95, (211, 195, 181))]])
+SIGN_RED = (188 / 255, 54 / 255, 46 / 255)  # the red of the sign's lettering, #BC362E: the light bar's shown-workspace square
+
+# One look per bar. paint: whether any oxblood paint is left on the wood. graded: whether the sun-warming grade is applied (the sign's own
+# colours are not graded). relief: how strongly the grain and cracks are lit. cracks: board length per crack, in px, at weather 1.
+STYLES = {
+    "dark": dict(plugin="sinners.bar", look=LOOK, paint=True, graded=True, relief=0.9, cracks=900, lift=0.05),
+    # tone: each board's mean colour measured against the sign's wood (168, 148, 134); the left and right boards carry more cracks and
+    # relief, which darken them, so they are lifted
+    "light": dict(plugin="sinners.bar-light", look={"left": dict(tone=1.20), "right": dict(tone=1.20), "center": dict(tone=1.04, weather=0.35)},
+                  paint=False, graded=False, relief=0.65,
+                  cracks=1200, lift=0.0),
+}
 
 H = SURFACE * SS
 TOP_PX, BH = TOP * SS, BOARD_H * SS
 
 
-def wood_canvas(rng, w, ragged_end=False):
+def wood_canvas(rng, w, ragged_end=False, weather=1.0, style=STYLES["dark"]):
     """The board's rows only (BH x w): charred cypress with some of its oxblood paint left on it, shaded, as float RGB, plus the end
     profile if any. The paint is in worn patches, stretched along the grain, that cover PAINT_LEFT of the board."""
     # The slow swings of tone (blotch) are for a long board. On a short piece, such as an end cap, they are one random offset, so
     # they are damped there; the cap is also scaled to its body's tone (see cap()).
-    v, hg, cr = make_wood(BH, w, rng, ring=(6.0, 12.0), lift=0.05, knots=int(rng.random() < 0.4),
-                          crack_rate=1 / 900, crack_y="edges", blotch=1.0 if w > 400 else 0.3)
-    rgb = 0.55 * BROWN(v - 0.04) + 0.45 * DARK(v)       # the wood: dark, weathered, a little warm
+    v, hg, cr = make_wood(BH, w, rng, ring=(6.0, 12.0), lift=style["lift"], knots=int(rng.random() < 0.4),
+                          crack_rate=weather / style["cracks"], crack_y="edges", blotch=1.0 if w > 400 else 0.3)
+    if style["paint"]:
+        rgb = 0.55 * BROWN(v - 0.04) + 0.45 * DARK(v)   # the wood: dark, weathered, a little warm
+    else:
+        rgb = SIGN_WOOD(np.clip(0.5 + (v - 0.5) * 2.2, 0, 1))      # the sign's wood: v is spread across its own tonal range
     Yd = np.arange(BH, dtype=np.float32)[:, None]
     vedge = np.minimum(Yd, BH - 1 - Yd)               # distance from the top or bottom edge
     hg = hg - 1.8 * smooth(3.0, 0.0, vedge)
@@ -77,6 +103,8 @@ def wood_canvas(rng, w, ragged_end=False):
         rgb = rgb * (1 - 0.55 * grain_end)[..., None]
         hg = hg - 1.6 * grain_end
         worn = worn * smooth(0, 7, d)
+    if not style["paint"]:
+        return rgb, hg, xl
     # the same wood with all its paint on it, and then the paint kept only where the patches say
     rgb_p, hg_p = rgb.copy(), hg.copy()
     paint(rgb_p, hg_p, np.clip(worn * 1.4, 0, 1), PAINT, rng, v, block=smooth(0.55, 0.95, cr), wear=1.0, opacity=0.92, wobble=1.0)
@@ -93,12 +121,15 @@ def wood_canvas(rng, w, ragged_end=False):
     return rgb, hg, xl
 
 
-def lit(rgb, hg):
-    """Light it from above and left, as the mockups were, and warm it toward the sun."""
-    out = shade(rgb, hg, strength=0.9)
+def lit(rgb, hg, tone=1.0, weather=1.0, style=STYLES["dark"]):
+    """Light it from above and left, as the mockups were, and warm it toward the sun (not the light bar's: it keeps the sign's colours).
+    tone and weather: see LOOK."""
+    out = shade(rgb, hg, strength=style["relief"] * (0.55 + 0.45 * weather))
+    if not style["graded"]:
+        return np.clip(out * tone, 0, 1)
     lum = (out * np.array([0.30, 0.59, 0.11], np.float32)).sum(-1, keepdims=True)
     out = lum + (out - lum) * 0.8
-    return np.clip(out * np.array([1.0, 0.93, 0.84], np.float32) * 0.95, 0, 1)
+    return np.clip(out * np.array([1.0, 0.93, 0.84], np.float32) * 0.95 * tone, 0, 1)
 
 
 def shadow_rows(w):
@@ -119,11 +150,12 @@ def assemble(rgb, board_alpha, shadow_alpha):
     return (np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
-def body(name, wlog, seed):
+def body(name, wlog, seed, style=STYLES["dark"]):
     rng = np.random.default_rng(seed)
     w = wlog * SS
-    rgb, hg, _ = wood_canvas(rng, w)
-    rgb = lit(rgb, hg)
+    look = {**DEFAULT_LOOK, **style["look"].get(name, {})}
+    rgb, hg, _ = wood_canvas(rng, w, weather=look["weather"], style=style)
+    rgb = lit(rgb, hg, look["tone"], look["weather"], style)
     return assemble(rgb, np.ones((BH, w), np.float32), shadow_rows(w))
 
 
@@ -131,16 +163,17 @@ def luma(rgb):
     return (rgb * np.array([0.2126, 0.7152, 0.0722], np.float32)).sum(-1)
 
 
-def cap(name, seed, flip, target):
+def cap(name, seed, flip, target, style=STYLES["dark"]):
     """An end cap. target is the median luminance of the board's body: the cap is scaled to match it, because it is drawn as a
     separate small piece of wood whose overall tone is a random draw, and one drew a right cap a fifth as bright as its board."""
     rng = np.random.default_rng(seed)
     w = CAP_W * SS
-    rgb, hg, xl = wood_canvas(rng, w, ragged_end=True)
+    look = {**DEFAULT_LOOK, **style["look"].get(name, {})}
+    rgb, hg, xl = wood_canvas(rng, w, ragged_end=True, weather=look["weather"], style=style)
     X = np.arange(w, dtype=np.float32)[None, :]
     for ny in (8 * SS, BH - 8 * SS):                    # a pair of nails, 11 logical px in from the end
         nail(rgb, hg, END_AT * SS + 11 * SS + rng.normal(0, 1.0), ny + rng.normal(0, 1.0), rng, r=1.9 * SS)
-    rgb = lit(rgb, hg)
+    rgb = lit(rgb, hg, look["tone"], look["weather"], style)
     # match the body's tone, measured on the stretch that is opaque and clear of the sawn end's darkening and of the nails
     here = np.median(luma(rgb[:, 14:26]))                # columns, in this cap's 2x pixels: 7 to 13 logical px from its edge
     rgb = np.clip(rgb * float(np.clip(target / max(here, 1e-4), 0.5, 6.0)), 0, 1)
@@ -166,13 +199,13 @@ def _streaks(rng, h, w, along_x):
     return np.clip(n / 2.0, -1, 1)
 
 
-def _rgba(alpha, streak):
-    col = np.asarray(CREAM, np.float32) * (0.975 + 0.04 * streak)[..., None]
+def _rgba(alpha, streak, colour=None):
+    col = np.asarray(CREAM if colour is None else colour, np.float32) * (0.975 + 0.04 * streak)[..., None]
     out = np.concatenate([np.clip(col, 0, 1), alpha[..., None]], axis=-1)
     return (np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
-def square_filled():
+def square_filled(colour=None):
     """A patch of cream paint, brushed on: its sides a little uneven where the brush ended, a few thin streaks showing the wood."""
     rng = np.random.default_rng(606)
     w, h = SQ_W * SS, SQ_H * SS
@@ -185,7 +218,7 @@ def square_filled():
            * np.clip(Y - top[None, :] + 0.5, 0, 1) * np.clip(bottom[None, :] - Y + 0.5, 0, 1))
     streak = _streaks(rng, h, w, True)
     thick = np.clip(0.91 + 0.13 * streak, 0.74, 1.0)                                       # a few thin streaks let the wood through
-    return _rgba(cov * thick, streak)
+    return _rgba(cov * thick, streak, colour)
 
 
 def square_outline():
@@ -226,19 +259,22 @@ def square_outline():
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugins", "sinners.bar", "wood")
-    os.makedirs(out, exist_ok=True)
-    for name, (wlog, seed) in BOARDS.items():
-        b = body(name, wlog, seed)
-        target = float(np.median(luma(b[TOP_PX:TOP_PX + BH, :, :3].astype(np.float32) / 255)))
-        Image.fromarray(b).save(os.path.join(out, f"{name}-body.png"), optimize=True)
-        Image.fromarray(cap(name, seed + 1, False, target)).save(os.path.join(out, f"{name}-lcap.png"), optimize=True)
-        Image.fromarray(cap(name, seed + 2, True, target)).save(os.path.join(out, f"{name}-rcap.png"), optimize=True)
-        print("wrote", name)
-    wsdir = os.path.join(out, "..", "..", "sinners.workspaces")
+    plugins = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugins")
+    for style_name, style in STYLES.items():
+        out = os.path.join(plugins, style["plugin"], "wood")
+        os.makedirs(out, exist_ok=True)
+        for name, (wlog, seed) in BOARDS.items():
+            b = body(name, wlog, seed, style)
+            target = float(np.median(luma(b[TOP_PX:TOP_PX + BH, :, :3].astype(np.float32) / 255)))
+            Image.fromarray(b).save(os.path.join(out, f"{name}-body.png"), optimize=True)
+            Image.fromarray(cap(name, seed + 1, False, target, style)).save(os.path.join(out, f"{name}-lcap.png"), optimize=True)
+            Image.fromarray(cap(name, seed + 2, True, target, style)).save(os.path.join(out, f"{name}-rcap.png"), optimize=True)
+            print("wrote", style_name, name)
+    wsdir = os.path.join(plugins, "sinners.workspaces")
     os.makedirs(wsdir, exist_ok=True)
     Image.fromarray(square_filled()).save(os.path.join(wsdir, "square-filled.png"), optimize=True)
     Image.fromarray(square_outline()).save(os.path.join(wsdir, "square-outline.png"), optimize=True)
+    Image.fromarray(square_filled(SIGN_RED)).save(os.path.join(wsdir, "square-red.png"), optimize=True)
     print("wrote squares")
 
 

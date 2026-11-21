@@ -19,6 +19,7 @@ Then the extras, which are separate from the theme and optional:
     bin/extras uninstall        # undo everything; the font goes back to what it was
     bin/extras install toasts   # not part of "everything", because it replaces something: see Toasts that burn away
     bin/extras install bar      # likewise, because it replaces your bar: see A bar of boards
+    bin/extras install bar-light   # the same bar on light boards; see The light bar
     bin/extras install workspaces  # likewise, because it replaces the workspaces widget: the painted square, see A bar of boards
     bin/extras install clock       # likewise, because it replaces the clock widget: the gold clock, see A bar of boards
 
@@ -83,6 +84,8 @@ and it never removes a package. Every check for every extra you select runs befo
   (see Toasts that burn away, below). Opt-in.
 - `plugins/sinners.bar/`: Omarchy's bar with a weathered wooden board behind each of its three sections (see A bar of
   boards, below). Opt-in.
+- `plugins/sinners.bar-light/`: the same bar on light boards, the warm grey wood of the film's sign, with dark lettering (see The light
+  bar, below). It is built from the dark bar's files and one patch of its own. Opt-in.
 - `plugins/sinners.workspaces/`: Omarchy's workspaces widget, copied and patched to show the shown workspace as its number
   in a painted cream square (see A bar of boards, below). Opt-in.
 - `plugins/sinners.clock/`: Omarchy's clock widget, copied, with its label patched to the sun's gold (see A bar of boards,
@@ -270,7 +273,7 @@ or by hand, which is all `install` does: `ln -s "$PWD/plugins/sinners.bar" ~/.co
 unchanged, `omarchy restart shell`. Your widgets and their layout are not touched.
 
 **The painted square.** In the stock bar the shown workspace is its layout glyph, with nothing round it. `plugins/sinners.workspaces`
-is Omarchy's workspaces widget with this change: the shown workspace is its number, in the theme's deep rust (`selection`, `#5A1F0F`,
+is Omarchy's workspaces widget with this change (described here for the dark bar; the light bar's is above): the shown workspace is its number, in the theme's deep rust (`selection`, `#5A1F0F`,
 which the theme uses for what is selected, so it is the selected workspace's colour; the shell's own tokens do not carry it, so the widget
 has it as a default, and a theme can set `[bar] active-number` in its `shell.toml` to change it) and a heavy serif of its own (Noto Serif Black, so it is not the condensed sans of the rest of
 the lettering), inside a painted square in the theme's cream (`foreground`, the same as the lettering, read from `colors.toml` by the
@@ -280,7 +283,7 @@ keeping with the oxblood of the paint, and still clears the 7:1 mark. The square
 paint with the number on it (the default, and the easier to read), or four brush strokes round the number.
 `filled` in `PaintedSquare.qml` chooses; it is not generated, so a `build.sh` run leaves it alone. The widget no longer shows the layout
 glyph; pressing the shown workspace still cycles the layout. The square and the number are drawn by the widget like any other, so
-the chipped paint and grain over the boards (see below) fall on them too. It is a clone, so enabling it replaces the
+the grain over the boards (see below) falls on them too. It is a clone, so enabling it replaces the
 built-in and disabling it brings the built-in back, as with the toasts; it refuses while another clone of the
 workspaces is enabled. It is its own extra and works on any bar, but is meant for this one:
 
@@ -291,16 +294,45 @@ by hand: `ln -s "$PWD/plugins/sinners.workspaces" ~/.config/omarchy/plugins/sinn
 `omarchy plugin enable sinners.workspaces` (to go back: `omarchy plugin disable sinners.workspaces`). `build.sh` and
 `--check` work as for the bar.
 
+**The light bar.** There are two versions of the bar, and either can be used: `sinners.bar`, described here so far, with dark boards,
+and `sinners.bar-light`, with light ones. Choose with `bin/extras install bar` or `bin/extras install bar-light` (or `omarchy bar use
+sinners.bar-light`), and go from one to the other the same way; uninstall switches back to the bar you had before either. The light bar's
+boards are the wood of the film's Club Juke sign: a light, warm grey, `#A89486` on average. The colours were measured from the sign (the
+5th, 25th, 50th, 75th and 95th luminance percentiles of its wood, and the red of its lettering, `#BC362E`); only those numbers are used,
+none of its picture, as the theme's palette was taken from the key art. `tools/make-bar-wood.py` draws both sets of boards; the dark
+bar's are byte-for-byte what they were. The light bar's lettering is the theme's deep rust (`selection`, `#5A1F0F`; or `[bar] text-light`
+in a theme's `shell.toml`). Its boards are 4.4:1 against that, where the sign's own red on its own wood is 2.0:1, too faint at this size.
+
+It is Omarchy's bar plus the dark bar's board patch plus one patch of its own (the lettering colour and a gentler grain: 0.4 on the side
+boards and 0.3 on the clock's, against 0.95 and 0.5 on the dark bar, because dark lettering on a light board is broken up by the grain
+that suits cream on dark). Its Bar.qml is built by its `build.sh` from the stock bar and those two patches, and the board and overlay files
+are copies of the dark bar's, made by the same script, so there is one source of them.
+
+The shown workspace and the clock are the same two widgets on either bar: they tell which bar they are on from the bar's text colour,
+which is all a widget is told of the bar (dark text means light boards). On the light bar the shown workspace is a patch of the sign's red
+with its number in the theme's lightest cream (`bright_foreground`, `#F8EFD9`; or `[bar] active-number-light`), and the clock is the
+sign's red deepened to 55%, `#682016` (4.1:1 on the wood; or `[bar] clock-light`). The other widgets on the clock's board are the bar's
+text colour, rust, not the clock's red: the bar colours its widgets alike, and the two are within a few levels of each other.
+**The shown workspace's square on the light bar is a suggestion, to be decided.** Not decided: the stock widget dims an empty workspace
+to half strength, which on light wood leaves its number faint.
+
 **The colours.** Each colour on the bar has one job, so the eye goes where it should: the *wood* is charred and dark, with *oxblood*
 paint left on it in patches, and sits quietly under the sun; the *lettering* is the theme's cream (`foreground`), and so is the shown workspace's
 square, with the theme's deep rust (`selection`) as its number, so the active state is dark on cream where everything else is
 cream on dark; and *gold* (`yellow`, the sun) is only the clock, which is therefore the first thing you read. Nothing else on the bar is gold,
 and the bar has no red of its own beyond the paint on the boards (none, at `PAINT_LEFT = 0`).
 
-**The gold clock.** `plugins/sinners.clock` is Omarchy's clock widget, with the clock's label in the sun's gold (`#F9BD06`, the theme's
-`yellow`; or `[bar] clock` in the theme's `shell.toml`, if a theme has one). It is a clone like the workspaces: all four of the stock
-widget's files are copied, because it loads its calendar popup and its model from beside itself, and only `BarWidget.qml` is patched, by
-one line. Enabling it replaces the built-in and disabling it brings the built-in back; it refuses while another clone of the clock is
+**The gold clock.** `plugins/sinners.clock` is Omarchy's clock widget, with the clock's label, on the dark bar, in the sun's gold (`#F9BD06`, the theme's
+`yellow`; or `[bar] clock` in the theme's `shell.toml`, if a theme has one; on the light bar it is the deepened red described above) and in capitals in Cinzel Decorative Black, a flared, swashy
+display face chosen for the spirit of the Club Juke sign's hand-lettering (the sign is painted in the film, and a search found no typeface
+identified for it; this was picked by comparing about twenty free faces on the real board, and it was the one that kept its flares and swashes under the
+wood-grain overlay, which shreds the thin ones). The font is bundled in `plugins/sinners.clock/fonts/`, with its licence (SIL Open Font
+License 1.1, by Natanael Gama), and loaded from there by the plugin, so no package is installed and nothing is needed from the system. If it
+cannot be loaded, or on a vertical bar, the clock is lettered as the stock clock is. The clock's board is lighter and calmer than the other
+two (`LOOK` in `tools/make-bar-wood.py`: brightness 1.3x, fewer cracks and a smoother surface), and its grain overlay is gentler
+(`grain: 0.5` on its `WornPaint` in the bar patch, against 0.95 for the others), so the fine strokes of the lettering
+survive. The clock's board is also longer, since capitals in this face are wider. It is a clone like the workspaces: all four of the stock
+widget's files are copied, because it loads its calendar popup and its model from beside itself, and only `BarWidget.qml` is patched. Enabling it replaces the built-in and disabling it brings the built-in back; it refuses while another clone of the clock is
 enabled:
 
     bin/extras install clock           # link it and enable it
@@ -312,20 +344,20 @@ by hand: `ln -s "$PWD/plugins/sinners.clock" ~/.config/omarchy/plugins/sinners.c
 **The lettering.** On a horizontal bar the widgets and their tooltips draw in Noto Sans Condensed Black (install
 `noto-fonts`; without it Qt falls back to its default font and the lettering is merely plainer), a heavy condensed sans like a
 sign painter's, whatever the system font is. The popups the widgets open keep the system font. The bar's font is one line of
-the patch (`fontFamily`), so nothing is cloned. Over each board's widgets, `WornPaint.qml` draws chipped paint: it draws the
-board's own picture again, kept only in small flakes stretched along the grain (`shaders/wear.frag`; the flakes are noise made in
-the shader, no picture). On bare board that is the board over itself, which changes nothing; over a letter it puts the board back
-on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked at full strength, and about 6% of the lettering's
-pixels are chipped away; `strength` in `WornPaint.qml` (0.4) sets how completely a flake shows the board, and 0 is off; it barely changes how many letters are chipped.
-The same overlay gives the lettering the wood's grain, so it looks painted on the board and not laid over it: wherever the board is
+the patch (`fontFamily`), so nothing is cloned. Over each board's widgets, `WornPaint.qml` draws the board's own picture again (`shaders/wear.frag`). On
+bare board that is the board over itself, which changes nothing; over a letter it puts the board back, a little, where the wood is
+grooved, which gives the lettering the wood's grain, so it looks painted on the board and not laid over it: wherever the board is
 darker than the board a few pixels above and below it (the grain runs along the bar, so that is where grain lines, cracks and pits are),
 the board is let through, a little, and the lettering gets the wood's dark lines across it while the cream between them stays bright.
-`grain` in `WornPaint.qml` (0.95) sets how much; 0 is off. At the shipped settings about 50% of the lettering's pixels are touched by wear or
-grain (most of it grain; it bites harder on the dark boards than it did on the red ones this was tuned on, so lower `grain` if the
-lettering is too eaten), and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and `STRENGTH=`). Nothing redraws or hides a widget, so the text and
+`grain` in `WornPaint.qml` (0.95; the clock board 0.5) sets how much; 0 is off. At the shipped settings about 46% of the lettering's
+pixels are touched by grain (it bites harder on the dark boards than it did on the red ones this was tuned on, so lower `grain` if the
+lettering is too eaten), and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and
+`STRENGTH=`). The same overlay can also chip the lettering: `strength` in `WornPaint.qml` puts the board back over small flakes, stretched
+along the grain, where the paint would have worn off. It is off (0): at 0.4 it altered only about 3% more of the lettering than the grain
+alone, and it made the clock's fine flourishes ragged. Nothing redraws or hides a widget, so the text and
 icons are exactly as the shell draws them, clicks and hover never see the overlay (it takes no input), and if its shader cannot run it
 draws nothing. `tools/preview-wear.sh out.png` renders the effect on software GL, the lettering without the flakes above and with
-them below, and prints how much it chipped.
+them below, and prints how much it altered.
 
 An earlier version redrew the widgets themselves through the effect, which showed no flakes in the real shell and gave the icons
 red and blue edges, so it was dropped.

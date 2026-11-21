@@ -8,28 +8,46 @@
  import qs.Ui
  
  BarWidget {
-@@ -270,7 +271,13 @@
+@@ -16,6 +17,11 @@
+   // numbered 1-10, and the one that monitor shows, whichever monitor has focus.
+   readonly property int slots: 10
+ 
++  // The light bar (sinners.bar-light) has dark lettering, because its boards are light; the dark bar has cream. The bar's text colour is
++  // all this widget is told of the bar, so it is how it tells which it is on: dark text means light boards.
++  readonly property bool lightBoards: bar && bar.barForeground
++    ? bar.barForeground.r * 0.2126 + bar.barForeground.g * 0.7152 + bar.barForeground.b * 0.0722 < 0.4 : false
++
+   readonly property var monitor: {
+     var window = root.QsWindow.window
+     var screen = window ? window.screen : null
+@@ -270,7 +276,18 @@
          Layout.topMargin: firstGuest && root.vertical ? Style.space(6) : 0
  
          bar: root.bar
 -        text: shown ? root.modeGlyph(root.activeMode) : (slot === root.slots ? "0" : String(slot))
-+        // The shown workspace is its number, in the theme's deep rust (colors.toml's selection, #5A1F0F, the colour of the selected;
-+        // or [bar] active-number in the theme's shell.toml) and a heavy serif of its own, inside a painted cream square (PaintedSquare.qml).
-+        // It no longer shows the layout glyph; pressing it still cycles the layout. Everything else about the widget is stock.
-+        foreground: shown ? Commons.Color.flatColor(Commons.Color.pick("bar.active-number", "#5A1F0F"), "#5A1F0F") : (bar ? bar.barForeground : "#E8C48C")
++        // The shown workspace is its number in a heavy serif of its own, inside a painted square (PaintedSquare.qml). On the dark bar the
++        // square is the theme's cream and the number the theme's deep rust (colors.toml's selection, #5A1F0F, the colour of the selected;
++        // or [bar] active-number in the theme's shell.toml). On the light bar the square is the red of the film sign's lettering and the
++        // number the theme's lightest cream (colors.toml's bright_foreground, #F8EFD9; or [bar] active-number-light). It no longer shows the
++        // layout glyph; pressing it still cycles the layout. Everything else about the widget is stock.
++        foreground: shown
++          ? (root.lightBoards ? Commons.Color.flatColor(Commons.Color.pick("bar.active-number-light", "#F8EFD9"), "#F8EFD9")
++                              : Commons.Color.flatColor(Commons.Color.pick("bar.active-number", "#5A1F0F"), "#5A1F0F"))
++          : (bar ? bar.barForeground : "#E8C48C")
 +        fontFamily: shown ? "Noto Serif Black" : (bar ? bar.fontFamily : Style.font.family)
 +        fontSize: shown ? Style.font.body + 4 : Style.font.body
 +        text: slot === root.slots ? "0" : String(slot)
          opacity: occupied || shown ? 1 : 0.5
          horizontalMargin: 6
          verticalPadding: 6
-@@ -281,6 +288,14 @@
+@@ -281,6 +298,15 @@
            else root.focusWorkspace(modelData)
          }
          onWheelMoved: function(delta) { root.scrollWorkspaces(delta) }
 +
 +        PaintedSquare {
 +          z: -1
++          red: root.lightBoards
 +          visible: shown
 +          anchors.centerIn: parent
 +          width: Style.space(20)

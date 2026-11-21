@@ -2414,8 +2414,9 @@ Item {
     }
 
     // Chipped paint on the middle board's lettering, as for the left and right (it follows the board, which is shown on a
-    // horizontal bar only).
-    WornPaint { board: centerBoard; seed: 3 }
+    // horizontal bar only). The clock's flourishes are fine strokes that the other boards' grain would break up, so this
+    // board's grain is gentler.
+    WornPaint { board: centerBoard; seed: 3; grain: 0.5 }
   }
 
   // The middle of the bar: the center section's widgets, centered as one

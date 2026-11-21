@@ -143,14 +143,15 @@
      ModuleList {
        id: beginList
        keys: sections.active ? root.layoutWidgets.sections.centerBegin : []
-@@ -2365,6 +2412,10 @@
+@@ -2365,6 +2412,11 @@
        x: root.vertical ? 0 : (sections.besideRight ? beginList.width : Math.round((sections.width - width) / 2))
        y: root.vertical ? Math.round((sections.height - height) / 2) : 0
      }
 +
 +    // Chipped paint on the middle board's lettering, as for the left and right (it follows the board, which is shown on a
-+    // horizontal bar only).
-+    WornPaint { board: centerBoard; seed: 3 }
++    // horizontal bar only). The clock's flourishes are fine strokes that the other boards' grain would break up, so this
++    // board's grain is gentler.
++    WornPaint { board: centerBoard; seed: 3; grain: 0.5 }
    }
  
    // The middle of the bar: the center section's widgets, centered as one
