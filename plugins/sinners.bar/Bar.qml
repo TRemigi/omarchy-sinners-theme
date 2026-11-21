@@ -76,7 +76,10 @@ Item {
   // Resolves through fontconfig at paint time (Style.font.family defaults
   // to "monospace"), so changing the system font (via `omarchy-font-set`)
   // updates the bar without a reload.
-  property string fontFamily: Style.font.family
+  // A horizontal bar's lettering is a condensed black sans, like a sign painter's, whatever the system font is: the bar's
+  // widgets and tooltips all draw with this one property. The popups they open keep the system font. If Noto Sans is not
+  // installed Qt falls back to its default font, and the lettering is merely plainer.
+  property string fontFamily: vertical ? Style.font.family : "Noto Sans Condensed Black"
   // Bound to the central Color singleton so the bar tracks shell.toml's
   // [bar] section. Property names kept for the rest of this file's bindings.
   property color themeForeground: Commons.Color.bar.text
@@ -1972,6 +1975,10 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
         }
 
+        // Worn paint on each section's lettering (see WornPaint.qml). It draws over its section and hides it only once its
+        // shader has compiled; clicks and hover still go to the section.
+        WornPaint { target: leftModules; seed: 1 }
+
         WoodBoard {
           name: "right"
           visible: rightModules.width > 0
@@ -1988,6 +1995,8 @@ Item {
           anchors.rightMargin: Style.space(25)
           anchors.verticalCenter: parent.verticalCenter
         }
+
+        WornPaint { target: rightModules; seed: 2 }
 
         // Where a display notch covers the middle of the bar, the center
         // sections run on just left of the right one. They keep their regions,
@@ -2400,6 +2409,11 @@ Item {
       x: root.vertical ? 0 : (sections.besideRight ? beginList.width : Math.round((sections.width - width) / 2))
       y: root.vertical ? Math.round((sections.height - height) / 2) : 0
     }
+
+    // Worn paint on the three groups of the middle board's lettering, as for the left and right (horizontal bars only).
+    WornPaint { target: beginList; seed: 3; visible: !root.vertical && sections.active }
+    WornPaint { target: centerBox; seed: 4; visible: !root.vertical && sections.active }
+    WornPaint { target: endList; seed: 5; visible: !root.vertical && sections.active }
   }
 
   // The middle of the bar: the center section's widgets, centered as one

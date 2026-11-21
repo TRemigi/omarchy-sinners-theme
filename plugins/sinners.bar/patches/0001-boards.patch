@@ -1,6 +1,18 @@
 --- a/Bar.qml
 +++ b/Bar.qml
-@@ -714,6 +714,11 @@
+@@ -76,7 +76,10 @@
+   // Resolves through fontconfig at paint time (Style.font.family defaults
+   // to "monospace"), so changing the system font (via `omarchy-font-set`)
+   // updates the bar without a reload.
+-  property string fontFamily: Style.font.family
++  // A horizontal bar's lettering is a condensed black sans, like a sign painter's, whatever the system font is: the bar's
++  // widgets and tooltips all draw with this one property. The popups they open keep the system font. If Noto Sans is not
++  // installed Qt falls back to its default font, and the lettering is merely plainer.
++  property string fontFamily: vertical ? Style.font.family : "Noto Sans Condensed Black"
+   // Bound to the central Color singleton so the bar tracks shell.toml's
+   // [bar] section. Property names kept for the rest of this file's bindings.
+   property color themeForeground: Commons.Color.bar.text
+@@ -714,6 +717,11 @@
  
    readonly property bool vertical: position === "left" || position === "right"
    readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
@@ -12,7 +24,7 @@
  
    // Display cutouts (a camera notch) the platform's own package describes in
    // the fixed platform root, which no environment variable moves. Most machines
-@@ -762,8 +767,8 @@
+@@ -762,8 +770,8 @@
    // the cutout is this panel's minimum sensible top-bar height. An
    // intentionally taller bar still wins.
    function thicknessFor(screen) {
@@ -23,7 +35,7 @@
    }
  
    // Each screen's bar thickness, by screen name: barSize, or more where a notch
-@@ -777,7 +782,7 @@
+@@ -777,7 +785,7 @@
    }
  
    function barSizeFor(screenName) {
@@ -32,7 +44,7 @@
    }
  
    function normalizePosition(value) {
-@@ -1515,7 +1520,7 @@
+@@ -1515,7 +1523,7 @@
      transparentForegroundProc.command = [
        "omarchy-bar-text-color",
        root.position,
@@ -41,7 +53,7 @@
        colorHex(root.themeForeground),
        colorHex(root.themeContrastForeground)
      ]
-@@ -1835,7 +1840,8 @@
+@@ -1835,7 +1843,8 @@
  
        Rectangle {
          anchors.fill: parent
@@ -51,7 +63,7 @@
        }
  
        Loader {
-@@ -1946,20 +1952,40 @@
+@@ -1946,23 +1955,49 @@
            drawn: !barWindow.centerBesideRight
          }
  
@@ -76,6 +88,10 @@
            anchors.verticalCenter: parent.verticalCenter
          }
  
++        // Worn paint on each section's lettering (see WornPaint.qml). It draws over its section and hides it only once its
++        // shader has compiled; clicks and hover still go to the section.
++        WornPaint { target: leftModules; seed: 1 }
++
 +        WoodBoard {
 +          name: "right"
 +          visible: rightModules.width > 0
@@ -94,7 +110,12 @@
            anchors.verticalCenter: parent.verticalCenter
          }
  
-@@ -2314,7 +2340,7 @@
++        WornPaint { target: rightModules; seed: 2 }
++
+         // Where a display notch covers the middle of the bar, the center
+         // sections run on just left of the right one. They keep their regions,
+         // so settings pushes, drag and drop, and panel routing still address
+@@ -2314,7 +2349,7 @@
      property bool besideRight: false
  
      implicitWidth: root.vertical ? root.barSize : beginList.width + centerBox.width + endList.width
@@ -103,7 +124,7 @@
  
      // Both placements sit at the bar surface's origin or anchor off its edge,
      // so the box's start in the sections is its start on the surface.
-@@ -2333,6 +2359,15 @@
+@@ -2333,6 +2368,15 @@
        function onCenterSectionRevealHeldChanged() { sections.syncPeekEdge() }
      }
  
@@ -119,3 +140,15 @@
      ModuleList {
        id: beginList
        keys: sections.active ? root.layoutWidgets.sections.centerBegin : []
+@@ -2365,6 +2409,11 @@
+       x: root.vertical ? 0 : (sections.besideRight ? beginList.width : Math.round((sections.width - width) / 2))
+       y: root.vertical ? Math.round((sections.height - height) / 2) : 0
+     }
++
++    // Worn paint on the three groups of the middle board's lettering, as for the left and right (horizontal bars only).
++    WornPaint { target: beginList; seed: 3; visible: !root.vertical && sections.active }
++    WornPaint { target: centerBox; seed: 4; visible: !root.vertical && sections.active }
++    WornPaint { target: endList; seed: 5; visible: !root.vertical && sections.active }
+   }
+ 
+   // The middle of the bar: the center section's widgets, centered as one

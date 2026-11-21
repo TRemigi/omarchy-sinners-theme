@@ -85,12 +85,13 @@ and it never removes a package. Every check for every extra you select runs befo
 - `plugins/sinners.workspaces/`: Omarchy's workspaces widget, copied and patched to put the shown workspace on a gold
   plate (see A bar of boards, below). Opt-in.
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, `make-bar-wood.py` (with
-  `woodlib.py`, which also draw the gold plate), and for the sun screen
+  `woodlib.py`, which also draw the gold plate and the wear mask), `preview-wear.sh`, and for the sun screen
   `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`. Checks: `check-hyprland.sh` for
   `hyprland.lua`; `check-notifications-upstream.sh`, which tells you whether the notification fork has fallen behind
   Omarchy; and `check-burn-completes.sh`, which renders the burn's last frame for 25 seeds and four card sizes and
   requires that nothing is left. For looking at the shaders without a compositor: `preview-embers.sh`, `preview-burn.sh` and
-  `shader-harness.c`, which they build (see Embers and smoke, and Toasts that burn away).
+  `shader-harness.c`, which they build (see Embers and smoke, and Toasts that burn away). `preview-wear.sh` uses the same
+  harness for the bar's worn-paint shader.
 - `research/`: how the theme was made. Omarchy does not read it. `palette.toml` is the first palette notes, superseded
   by `colors.toml`; `images/` has the swatch sheet and comparison mock-ups; `wallpapers/` has earlier wallpapers.
   A `poster-comparisons/` folder holds images that crop the poster. It stays on the machine it was made on and is
@@ -278,6 +279,16 @@ by hand: `ln -s "$PWD/plugins/sinners.workspaces" ~/.config/omarchy/plugins/sinn
 `omarchy plugin enable sinners.workspaces` (to go back: `omarchy plugin disable sinners.workspaces`). `build.sh` and
 `--check` work as for the bar.
 
+**The lettering.** On a horizontal bar the widgets and their tooltips draw in Noto Sans Condensed Black (install
+`noto-fonts`; without it Qt falls back to its default font and the lettering is merely plainer), a heavy condensed sans like a
+sign painter's, whatever the system font is. The popups the widgets open keep the system font. The bar's font is one line of
+the patch (`fontFamily`), so nothing is cloned. Over it, `WornPaint.qml` wears the paint: it draws each section's lettering
+again through `shaders/wear.frag`, which takes small flakes out of the letters along the grain, as chipped paint does (about 6%
+of the lettering's pixels; `strength` in `WornPaint.qml` sets it, 0 is off). The flakes come from `wood/wear.png`, a tileable
+mask drawn by `tools/make-bar-wood.py`. It is a fail-safe: the original is hidden only once the shader has compiled, so on
+a machine where it cannot run, the lettering is the stock bar's, unworn. `tools/preview-wear.sh out.png` renders the effect
+on software GL, the stock lettering above and the worn below.
+
 **How it is made.** The wood is not drawn by the shell: `tools/make-bar-wood.py` draws every board once, as PNGs in
 `plugins/sinners.bar/wood/`, and `WoodBoard.qml` cuts those pictures to each section's length. Each board is three
 pictures (a long body and the two ends), because the length is not known until the widgets are. The wood itself is
@@ -303,8 +314,11 @@ toasts, this copy does not receive Omarchy's later fixes to the bar until you re
 two bar heights and looked at. `bin/extras` was run against a stub `omarchy` and temporary files, through install,
 a second install, status and uninstall, including restoring a previous bar. **It has not been run in the live shell**, which needs a
 compositor: whether the widgets sit squarely on the boards, how the popups and the tray drawer behave, and whether
-Hyprland's blur leaves a halo round the boards' shadows are not known. The cream text is the stock widgets' own colour from
-the theme, not the hand-painted lettering of the mockups. The gold plate's widget is checked the same way (validated, parsed,
+Hyprland's blur leaves a halo round the boards' shadows are not known. The wear shader was run on software GL on real lettering
+and looked at (`tools/preview-wear.sh`), and `WornPaint.qml` was loaded in headless Qt, which cannot run shaders (so it only
+showed that the fail-safe leaves the lettering visible). Not known: whether the effect runs in the live shell, whether clicks, hover
+and dragging still reach a section whose lettering is hidden behind it (`hideSource` should only stop it being drawn), and how it
+looks at your screen's scale. The cream is the stock widgets' own colour from the theme. The gold plate's widget is checked the same way (validated, parsed,
 and its extra run against a stub); where the plate sits on the glyph, and whether the dark glyph colour takes, are not known.
 
 ## Palette provenance

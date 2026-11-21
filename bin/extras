@@ -470,7 +470,7 @@ current_bar() { jq -r '.bar.id // "'"$BAR_DEFAULT"'"' "$SHELL_JSON" 2>/dev/null 
 
 bar_check() {
   command -v jq >/dev/null || fail "jq is needed to read which bar is in use"
-  plugin_check "$BAR_ID" Bar.qml BarModel.js WoodBoard.qml wood/left-body.png wood/left-lcap.png wood/left-rcap.png \
+  plugin_check "$BAR_ID" Bar.qml BarModel.js WoodBoard.qml WornPaint.qml shaders/wear.frag.qsb wood/wear.png wood/left-body.png wood/left-lcap.png wood/left-rcap.png \
     wood/center-body.png wood/center-lcap.png wood/center-rcap.png wood/right-body.png wood/right-lcap.png wood/right-rcap.png
   local pos
   pos=$(jq -r '.bar.position // "top"' "$SHELL_JSON" 2>/dev/null || echo top)
