@@ -62,7 +62,7 @@ and it never removes a package. Every check for every extra you select runs befo
 - `bin/omarchy-sinners-unlock`: the command that picks among the unlock screens above (see below).
 - `bin/extras`: installs, removes and reports the optional extras: the command, its menu row, the font, and the
   embers (see Install).
-- `plugins/sinners.embers/`: the Embers shell plugin, embers floating up over the wallpaper (see Embers, below).
+- `plugins/sinners.embers/`: the Embers shell plugin, embers and smoke floating up over the wallpaper (see Embers, below).
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, and for the sun screen
   `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`; `check-hyprland.sh`, which checks
   `hyprland.lua`; and `preview-embers.sh` and `embers-harness.c`, which render the ember shader (see Embers).
@@ -120,16 +120,17 @@ halo fades out in an oval before the logo ends, so it is shorter than the wallpa
 tail of its limb ring add to the wallpaper's where the two overlap; the sky glow and the wallpaper's overall film
 grain are not in the logo.
 
-## Embers
+## Embers and smoke
 
-`plugins/sinners.embers` is an Omarchy shell plugin that floats embers up over the wallpaper. It puts a click-through
-window on the layer between the wallpaper and your windows, on every screen, and paints one fragment shader on it.
+`plugins/sinners.embers` is an Omarchy shell plugin that floats embers, and a little smoke behind them, up over the
+wallpaper. It puts a click-through window on the layer between the wallpaper and your windows, on every screen,
+and paints two fragment shaders on it, the smoke first and the embers over it.
 It is hidden under a fullscreen window and does nothing at all on any theme but Sinners, so it is safe to leave
 enabled. Install it with `bin/extras install embers`, which links it into `~/.config/omarchy/plugins` and runs
 `omarchy plugin enable sinners.embers`. A plugin runs as code inside the shell, so read it first; it is two small
-QML files and one shader. `bin/extras uninstall embers` disables it and removes the link.
+QML files and two shaders. `bin/extras uninstall embers` disables it and removes the link.
 
-What the shader does, and why it should look real rather than like confetti:
+What the embers shader does, and why it should look real rather than like confetti:
 
 - **Heat.** Each ember is lofted from just below the screen white-gold, and cools through orange and red to
   nothing while it shrinks and flickers. Many burn out before they reach the top, so they thin out as they rise.
@@ -140,18 +141,30 @@ What the shader does, and why it should look real rather than like confetti:
 - **Light, not paint.** The cores are overexposed so a hot one blooms toward white, and its halo is cooler than its
   core. The output is an ordinary translucent layer (alpha covers the colour), with no blend tricks.
 
+The smoke shader is meant to be only just there:
+
+- **Dark.** Smoke takes light away, so it is a translucent brown-black that shows as silhouettes against the sun and
+  the red glow, and it dims the sun a little where it crosses it.
+- **Rising and curling.** It is thickest at the bottom of the screen and thins as it climbs. The noise is
+  three-dimensional with time as the third axis, so it keeps changing shape and never loops, and it is warped by
+  more noise to give folded, billowing edges.
+- **Lit from behind.** Where the side of a wisp faces the sun it glows orange, more strongly the nearer the sun is.
+  The sun's position comes from the wallpaper's geometry in `tools/make-wallpaper.sh`, fitted to the screen the way
+  the desktop fits a wallpaper, so it follows the sun on any screen size.
+- **Cheap.** It is soft, so it renders at 40% of the screen's size and is scaled up.
+
 There are no particles to update: where each ember is, and how hot, is a function of the clock, so a frame costs
 only the fifteen embers near each pixel. Settings are inline fields on the plugin's entry in
-`~/.config/omarchy/shell.json` `plugins[]`, and apply when the file is saved: `embers` (false switches them off),
-`intensity` (0-1, 0.8), `density` (0.1-1.5, 1), `speed` (0.25-3, 1), `fpsCap` (5-60, 30) and `renderScale` (0.5-1, 1;
+`~/.config/omarchy/shell.json` `plugins[]`, and apply when the file is saved: `embers` (false switches the embers off),
+`smoke` (0-1, 0.32; 0 switches it off), `intensity` (0-1, 0.8, for the embers), `density` (0.1-1.5, 1), `speed` (0.25-3, 1), `fpsCap` (5-60, 60; the most frames a second the embers get, and the smoke is held to 30) and `renderScale` (0.5-1, 1;
 lower is cheaper and softer). A new shader or QML file needs `omarchy restart shell`. The clock wraps every six
 hours, because a 32-bit float clock is too coarse past that to place an ember to the pixel; at the wrap every ember
 is re-lofted at once.
 
-Edit `shaders/embers.frag`, then run `plugins/sinners.embers/build-shaders.sh` (needs `qt6-shadertools`); the compiled
+Edit `shaders/embers.frag` or `shaders/smoke.frag`, then run `plugins/sinners.embers/build-shaders.sh` (needs `qt6-shadertools`); the compiled
 `.qsb` is committed, so installing needs no compiler. To look at the shader without a compositor,
-`tools/preview-embers.sh out.png [time]` renders it on Mesa's software GL and composites it over the wallpaper
-(`TIMES="12 40 71"` makes a contact sheet; it needs `gcc`, `libEGL` and `libGLESv2`). That tests the shader, not the
+`tools/preview-embers.sh out.png [time]` renders them on Mesa's software GL and composites them over the wallpaper
+(`LAYERS=smoke` or `LAYERS=embers` draws one; `AMOUNT` sets the smoke; `TIMES="12 40 71"` makes a contact sheet; it needs `gcc`, `libEGL` and `libGLESv2`). That tests the shader, not the
 QML: the plugin has been validated (`omarchy plugin validate`, `qmllint`) but the layer itself has to be seen in a
 running shell.
 

@@ -50,7 +50,7 @@ vec3 heatColour(float h) {
     c = mix(c, vec3(0.85, 0.120, 0.010), smoothstep(0.10, 0.35, h));
     c = mix(c, vec3(1.00, 0.420, 0.040), smoothstep(0.30, 0.60, h));
     c = mix(c, vec3(1.00, 0.780, 0.300), smoothstep(0.55, 0.90, h));
-    c = mix(c, vec3(1.00, 0.880, 0.520), smoothstep(0.85, 1.15, h));
+    c = mix(c, vec3(1.00, 0.800, 0.340), smoothstep(0.85, 1.15, h));
     return c;
 }
 
@@ -139,7 +139,7 @@ void main() {
     light += emberLayer(p, aspect, 1.0, 44.0, 0.045, 0.075, 0.0034, 0.80, 0.75, 0.14, 0.020);
     light += emberLayer(p, aspect, 2.0, 12.0, 0.070, 0.110, 0.0110, 0.35, 0.70, 0.18, 0.035);
 
-    vec3 c = 1.0 - exp(-light * 1.6 * ubuf.intensity);       // exposure: the cores overexpose toward white
+    vec3 c = 1.0 - exp(-light * 1.25 * ubuf.intensity);       // exposure: the cores overexpose toward white
     float a = max(c.r, max(c.g, c.b));                        // premultiplied: colour never exceeds alpha
     fragColor = vec4(c, a) * ubuf.qt_Opacity;
 }

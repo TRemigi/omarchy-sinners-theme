@@ -1,9 +1,12 @@
-// Developer tool: runs the ember fragment shader on Mesa's software GL (headless EGL) and writes the frame as a
+// Developer tool: runs the ember or smoke fragment shader on Mesa's software GL (headless EGL) and writes the frame as a
 // PAM image (premultiplied RGBA), so the shader can be looked at without a GPU or a compositor. Use
 // tools/preview-embers.sh, which builds and calls this.
 //
 //   usage: embers-harness shader.frag W H time seed intensity density out.pam
 //   shader.frag is the GLES variant: qsb -x "glsl,100 es" -o shader.frag embers.frag.qsb
+//   For smoke.frag: AMOUNT (default 0.32) is how much smoke; the sun's position is worked out from W and H the way
+//   the plugin does (the wallpaper is 3840x2160 with its sun at 1920,940 and radius 600, scaled to cover the screen).
+//   Uniforms a shader does not have are ignored.
 //   FRAMES=N also times N further draws (ms per draw on stderr; llvmpipe, so not GPU timings).
 //
 // This tests the shader, not the Qt integration. qt_TexCoord0 has y = 0 at the top, as in Qt.
@@ -58,6 +61,10 @@ int main(int argc, char **argv) {
   glUniform1f(glGetUniformLocation(prog, "ubuf.density"), dens);
   glUniform1f(glGetUniformLocation(prog, "ubuf.seed"), seed);
   glUniform2f(glGetUniformLocation(prog, "ubuf.resolution"), (float)W, (float)H);
+  glUniform1f(glGetUniformLocation(prog, "ubuf.amount"), getenv("AMOUNT") ? (float)atof(getenv("AMOUNT")) : 0.32f);
+  { float sc = (float)W / 3840.f > (float)H / 2160.f ? (float)W / 3840.f : (float)H / 2160.f;   // cover-fit scale
+    float sx = ((1920.f - 1920.f) * sc + W / 2.f) / H, sy = 1.f - ((940.f - 1080.f) * sc + H / 2.f) / H, sr = 600.f * sc / H;
+    glUniform3f(glGetUniformLocation(prog, "ubuf.sun"), sx, sy, sr); }
 
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);

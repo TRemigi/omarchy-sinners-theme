@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "sinners.embers",
   "name": "Embers",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Taylor Remigi",
-  "description": "Embers for the Sinners theme: sparks lofted from below the screen that climb past the sun, cooling from gold to red as they go. Drawn by one shader on a layer between the wallpaper and the windows. Dormant on every other theme.",
+  "description": "Embers and smoke for the Sinners theme: sparks lofted from below the screen that climb past the sun, cooling from gold to red as they go, and dark smoke rising behind them, lit by the sun. Drawn by two shaders on a layer between the wallpaper and the windows. Dormant on every other theme.",
   "kinds": [
     "service"
   ],
