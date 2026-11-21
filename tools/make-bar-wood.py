@@ -15,7 +15,7 @@ Original work: the wood, paint and nails are procedural (tools/woodlib.py). No p
 traced. See "A bar of boards" in the README.
 
 It also draws the painted cream square behind the shown workspace (plugins/sinners.workspaces/square-filled.png and
-square-outline.png): a patch and a brushed outline of paint in the theme's lightest cream, 20 x 24 logical px.
+square-outline.png): a patch and a brushed outline of paint in the theme's cream, 20 x 24 logical px.
 
 Each board is three files, because a board's length depends on the widgets on it:
   <name>-body.png   a long strip of wood and paint, cropped by the bar to the board's length
@@ -47,7 +47,7 @@ def theme_colour(key):
     return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
 
 
-CREAM = theme_colour("bright_foreground")   # the shown workspace's square: the theme's lightest cream (the title cream), not white
+CREAM = theme_colour("foreground")          # the shown workspace's square: the theme's cream, the same as the lettering (not the brighter title cream)
 SQ_W, SQ_H = 20, 24                         # logical px; must match plugins/sinners.workspaces' patch
 BOARDS = {"left": (1000, 101), "center": (1000, 202), "right": (700, 303)}   # name: (body width logical, seed)
 

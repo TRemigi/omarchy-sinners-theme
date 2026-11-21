@@ -4,7 +4,7 @@
   "name": "Sinners Workspaces",
   "version": "0.1.0",
   "author": "Taylor Remigi",
-  "description": "Omarchy's workspaces widget with the shown workspace as its number, in the theme's red and a heavy serif of its own, inside a painted cream square, for the Sinners bar. Replaces the built-in while enabled; disable it to get stock back. Everything else is stock.",
+  "description": "Omarchy's workspaces widget with the shown workspace as its number, in the theme's deep rust and a heavy serif of its own, inside a painted cream square, for the Sinners bar. Replaces the built-in while enabled; disable it to get stock back. Everything else is stock.",
   "kinds": [
     "bar-widget"
   ],

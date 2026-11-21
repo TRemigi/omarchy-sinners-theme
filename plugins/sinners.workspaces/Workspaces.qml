@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 BarWidget {
@@ -270,10 +271,10 @@ BarWidget {
         Layout.topMargin: firstGuest && root.vertical ? Style.space(6) : 0
 
         bar: root.bar
-        // The shown workspace is its number, in the theme's red (bar.urgent: the bar's "active" colour) and a heavy serif of its own,
-        // inside a painted cream square (PaintedSquare.qml). It no longer shows the layout glyph; pressing it still cycles
-        // the layout. Everything else about the widget is stock.
-        foreground: shown ? (bar ? bar.urgent : "#E91A02") : (bar ? bar.barForeground : "#E8C48C")
+        // The shown workspace is its number, in the theme's deep rust (colors.toml's selection, #5A1F0F, the colour of the selected;
+        // or [bar] active-number in the theme's shell.toml) and a heavy serif of its own, inside a painted cream square (PaintedSquare.qml).
+        // It no longer shows the layout glyph; pressing it still cycles the layout. Everything else about the widget is stock.
+        foreground: shown ? Commons.Color.flatColor(Commons.Color.pick("bar.active-number", "#5A1F0F"), "#5A1F0F") : (bar ? bar.barForeground : "#E8C48C")
         fontFamily: shown ? "Noto Serif Black" : (bar ? bar.fontFamily : Style.font.family)
         fontSize: shown ? Style.font.body + 4 : Style.font.body
         text: slot === root.slots ? "0" : String(slot)

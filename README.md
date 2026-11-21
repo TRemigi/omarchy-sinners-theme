@@ -270,12 +270,14 @@ or by hand, which is all `install` does: `ln -s "$PWD/plugins/sinners.bar" ~/.co
 unchanged, `omarchy restart shell`. Your widgets and their layout are not touched.
 
 **The painted square.** In the stock bar the shown workspace is its layout glyph, with nothing round it. `plugins/sinners.workspaces`
-is Omarchy's workspaces widget with this change: the shown workspace is its number, in the theme's red (the bar's `active` colour,
-`bar.urgent`) and a heavy serif of its own (Noto Serif Black, so it is not the condensed sans of the rest of the lettering),
-inside a painted square in the theme's lightest cream (`bright_foreground`, the title cream, read from `colors.toml` by the generator, so
-it follows the theme; it is cream and not white to sit with the rest of the lettering). The square is one of two drawings from
-`tools/make-bar-wood.py`: a patch of paint with the number on it (the default, and the easier to read: red on cream, not red on the red
-board), or four brush strokes round the number.
+is Omarchy's workspaces widget with this change: the shown workspace is its number, in the theme's deep rust (`selection`, `#5A1F0F`,
+which the theme uses for what is selected, so it is the selected workspace's colour; the shell's own tokens do not carry it, so the widget
+has it as a default, and a theme can set `[bar] active-number` in its `shell.toml` to change it) and a heavy serif of its own (Noto Serif Black, so it is not the condensed sans of the rest of
+the lettering), inside a painted square in the theme's cream (`foreground`, the same as the lettering, read from `colors.toml` by the
+generator, so it follows the theme). The active state is therefore the inverse of everything else: dark on cream, where the rest is cream on
+dark (7.4:1, against 3.8:1 for the red on bright cream it replaced). Near-black would have measured 11.9:1, but rust is warmer, in
+keeping with the oxblood of the paint, and still clears the 7:1 mark. The square is one of two drawings from `tools/make-bar-wood.py`: a patch of
+paint with the number on it (the default, and the easier to read), or four brush strokes round the number.
 `filled` in `PaintedSquare.qml` chooses; it is not generated, so a `build.sh` run leaves it alone. The widget no longer shows the layout
 glyph; pressing the shown workspace still cycles the layout. The square and the number are drawn by the widget like any other, so
 the chipped paint and grain over the boards (see below) fall on them too. It is a clone, so enabling it replaces the
@@ -290,9 +292,10 @@ by hand: `ln -s "$PWD/plugins/sinners.workspaces" ~/.config/omarchy/plugins/sinn
 `--check` work as for the bar.
 
 **The colours.** Each colour on the bar has one job, so the eye goes where it should: the *wood* is charred and dark, with *oxblood*
-paint left on it in patches, and sits quietly under the sun; the *lettering* is the theme's cream (`foreground`); the *lightest
-cream* (`bright_foreground`) is only the shown workspace's square; *red* (`red`) is only that square's number; and *gold* (`yellow`,
-the sun) is only the clock, which is therefore the first thing you read. Nothing else on the bar is gold or red.
+paint left on it in patches, and sits quietly under the sun; the *lettering* is the theme's cream (`foreground`), and so is the shown workspace's
+square, with the theme's deep rust (`selection`) as its number, so the active state is dark on cream where everything else is
+cream on dark; and *gold* (`yellow`, the sun) is only the clock, which is therefore the first thing you read. Nothing else on the bar is gold,
+and the bar has no red of its own beyond the paint on the boards (none, at `PAINT_LEFT = 0`).
 
 **The gold clock.** `plugins/sinners.clock` is Omarchy's clock widget, with the clock's label in the sun's gold (`#F9BD06`, the theme's
 `yellow`; or `[bar] clock` in the theme's `shell.toml`, if a theme has one). It is a clone like the workspaces: all four of the stock
