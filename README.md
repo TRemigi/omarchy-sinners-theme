@@ -38,21 +38,40 @@ and it never removes a package. Every check for every extra you select runs befo
   red-orange below the middle, which is what lets a yellow title read on it. The yellow does not run to the edge:
   above the horizon the rim is a thin orange-to-red ring with a dark outer glow, as on the poster. Its glow is
   warm and strong beside the lower half and almost absent above the center line. It carries a faint seeded grain
-  with a little mottle. Below the sun it has the poster's horizon and ground, without the figures: a red haze, smoky
-  and uneven, along the horizon, which the sun's lower rim sinks into, and below it a dark maroon ground, gritty and
-  streaked sideways near the horizon, darkening to near black. The horizon sits 3.6% of the sun's diameter below the
+  with a little mottle. Below the sun it has the poster's horizon and ground: a red haze, smoky
+  and uneven, along the horizon, which the sun's lower rim sinks into, and below it a dark maroon ground of fine, crisp grit,
+  darkening toward the bottom. The horizon sits 3.6% of the sun's diameter below the
   sun's rim, as on the poster, and the ground is 27% of the height. The colours are the poster's own median colours
-  at each distance from its horizon (the haze is the poster's; the ground's colours are spread over twice the distance, so
-  it comes out of the haze instead of stepping down from it). The texture is drawn in perspective, as ground seen at
-  a grazing angle is: fine grit at the horizon, flattened into streaks, growing into broad clods and patches of soil near
-  the viewer, and fading in out of the haze. Its overall strength is the poster's (about 20% variation in brightness);
-  its change of scale with depth is not, since on the poster the texture is the same size all the way down. The
-  comments in `make-wallpaper.sh` give the numbers and how they were measured. The poster's sparks over the ground are left to the Embers plugin.
+  at each distance from its horizon (the haze is the poster's; the ground's colours are spread over twice the distance near the horizon, so
+  it comes out of the haze instead of stepping down from it, and reach the poster's darkness lower down). The texture is made like the poster's, which
+  is isotropic grit with far more at 1-3px than at 20px, and with more of it, not less, toward the bottom: a layer of fine grit
+  at the screen's own resolution, a softer layer of 1-2px specks, mottle and a few dark clods at larger scales, and fading in
+  out of the haze. Its strength at each scale and depth was measured against the poster's (within about 20%; `make-wallpaper.sh`
+  gives the numbers). Only the mottle and clods are in perspective, shrinking with distance without being stretched, which
+  the poster's texture is not (it is the same size all the way down); a version in which they were flattened into streaks, and
+  had nothing finer than a few pixels, looked like a game texture and was dropped. The
+  comments in `make-wallpaper.sh` give the numbers and how they were measured. The poster's sparks over the ground are
+  left to the Embers plugin. Standing alone on the plain, centred under the sun, is Bert and Joan's farmhouse from the
+  film: a small wooden cabin about 12 m long with a wall 3 m high and a ridge 5.6 m high, so that its large corrugated-tin
+  roof, a patchwork of sheets in very different tones with a few gone, is most of what you see; it overhangs a long
+  front porch with six thin posts, over a door and a window set back in shadow, with a clapboard gable end at the right
+  and a low foundation. It is drawn by the script from its architecture, not traced or cut from a still, which would be
+  studio artwork; only the house, with none of the car, horse or cow around it. Its size and place come from real
+  distances, set at the top of that section: at 200 yards, seen at a 40 degree view from 1.7 m above the ground, it is
+  about 350px wide on the 3840px wallpaper, and the ground at its foot is about 49px below the horizon: close to it,
+  but not on it. The sun is behind it, so it is dark: only the roof is faintly lit. It is rendered, not just filled: its
+  brightness falls from the sky-light on top to gloom near the ground; the bright haze behind wraps a couple of pixels
+  over its edges, and a thin warm rim of light runs along the ridge and gable where the sun reaches it; its edges are
+  very slightly irregular; its colours are graded into the scene's red light, so that it is a darker version of the haze
+  and not a brown object; the boards streak with rain; and the haze over it thickens toward the ground, where a band of
+  dust crosses its foot. It casts a short shadow toward the viewer. `DIST_YD`, `FOV_DEG` and `EYE_M` in
+  `make-wallpaper.sh` move it nearer or farther.
   It is made from measurements of the poster, and does not use studio artwork.
   `make-wallpaper.sh out.png` writes a PNG; convert it with `magick out.png -quality 92 backgrounds/1-sinners-sun.webp`.
   Earlier versions are kept in `research/wallpapers/` (v1: symmetric red glow and a smooth gold-centered sun; v2: poster colors;
   v3, the version before the limb ring, is not kept, since it only differs by that ring; v4: the limb ring, texture and
-  title-ready colours, with a plain dark gradient where the ground now is).
+  title-ready colours, with a plain dark gradient where the ground now is; v5, the ground without the house, is not kept;
+  a version with dark figures standing in the haze was tried and dropped).
 - `icons.theme`: GTK icon theme (`Yaru-red`).
 - `hyprland.lua`: the window borders (the gradient from `colors.toml`) and a faint orange glow on the focused window,
   made with Hyprland's window shadow: 18px at about 9% of the sun's orange, and none on unfocused windows.
@@ -130,8 +149,9 @@ one screen size, and it is only correct on that one: the default is 1920x1200 (`
     tools/verify-sun.py [WxH]              # checks the alignment against the wallpaper, about two minutes
 
 The sun's size and position are read from `make-wallpaper.sh`, so the two cannot drift apart; rebuild the unlock
-screen after changing the wallpaper, as the haze and the ground over the sun's lower rim are part of its colour (the sun's
-bottom edge sinks into the haze on the unlock screen too). The title spans 92% of the sun's width, as on the poster (measured there), and
+screen after changing the wallpaper's sun. It is the plain sun, without the haze, ground and farmhouse that stand over the
+wallpaper's lower rim: the unlock screen is not meant to carry them, so it matches the wallpaper in the sun's place,
+size and colours and not below it (`verify-sun.py` builds its reference wallpaper without them, `SINNERS_GROUND=0`). The title spans 92% of the sun's width, as on the poster (measured there), and
 is centered on the sun: on the poster it sits a little low only because it is part of a text block that is itself
 centered. Its lemon on the sun measures 3.1:1, the poster's own contrast. The logo is 1600x960 on a 1920x1200 screen, which puts the password field
 at y=1120. The sun's grain is seeded, so the logo's sun has exactly the wallpaper's pixels. Where it differs: the
