@@ -3,7 +3,8 @@
 
 usage: verify-sun.py [WIDTHxHEIGHT]      default 1920x1200. Takes about two minutes: it renders two 4K images.
 
-It builds the sun-only logo and a grain-free copy of the wallpaper with the same scripts, scales the wallpaper to
+It builds the sun-only logo and a copy of the wallpaper with the same scripts, without its grain, haze, ground and
+figures (the unlock screen does not carry those, so the sun is compared as it is above them), scales the wallpaper to
 the screen the way Omarchy does, lays the logo over it where Plymouth would put it, and reports:
   1. the largest colour difference anywhere inside the disc (0-255; 0 or 1 is rounding), and
   2. the disc's left, right and top edges measured in the image, against the geometry computed from Omarchy's
@@ -28,9 +29,9 @@ tmp = tempfile.mkdtemp(prefix='verify-sun.')
 w = lambda n: os.path.join(tmp, n)
 print(f'screen {SCREEN}: the sun should be at ({exp_cx:.1f}, {exp_cy:.1f}) with radius {exp_r:.1f}')
 
-# the grain-free wallpaper, built from the same script with only the grain line removed
+# the wallpaper without its grain, haze, ground and figures: the same script, with the grain line removed and SINNERS_GROUND=0
 open(w('nograin.sh'), 'w').write('\n'.join(l for l in src.split('\n') if 'grain.png -compose Overlay -composite' not in l))
-run('bash', w('nograin.sh'), w('ref4k.png'))
+run('env', 'SINNERS_GROUND=0', 'bash', w('nograin.sh'), w('ref4k.png'))
 run('python3', '-I', os.path.join(HERE, 'sun-unlock.py'), '--screen', SCREEN, '--layer', w('ref4k.png'), '--embers', '0',
     '--out', w('ignore.png'), '--screen-layer', w('ref_screen.png'))
 run('python3', '-I', os.path.join(HERE, 'sun-unlock.py'), '--screen', SCREEN, '--embers', '0', '--out', w('logo.png'))
