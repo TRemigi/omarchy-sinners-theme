@@ -7,8 +7,8 @@
 # board's own picture kept only where the noise says. On bare board a flake changes nothing; over a letter it is a chip.
 #
 #   usage: tools/preview-wear.sh OUT.png
-#          STRENGTH=0.7  how much of a flake is the board showing again (the plugin's default)
-#          GRAIN=0.55    how much of the wood's dark grooves show through the paint (the plugin's default)
+#          STRENGTH=0.4  how much of a flake is the board showing again (the plugin's default)
+#          GRAIN=0.95    how much of the wood's dark grooves show through the paint (the plugin's default)
 #          TEXT="..."    the lettering
 #
 # Needs qt6-shadertools (qsb), gcc with EGL and GLESv2 headers, and ImageMagick; and numpy and Pillow for the composite (see
@@ -18,8 +18,8 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PLUGIN=$ROOT/plugins/sinners.bar
 OUT=${1:?usage: preview-wear.sh OUT.png}
-STRENGTH=${STRENGTH:-0.7}
-GRAIN=${GRAIN:-0.55}
+STRENGTH=${STRENGTH:-0.4}
+GRAIN=${GRAIN:-0.95}
 TEXT=${TEXT:-Saturday 3:13 PM    gremlin: omarchy-sinners-theme}
 PY=${PYTHON:-python3}
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
