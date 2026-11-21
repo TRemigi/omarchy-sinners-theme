@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "sinners.active-window",
+  "name": "Sinners Window Title",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "Omarchy's window-title widget with the title a step dimmer than the rest of the lettering, for the Sinners bar, so the eye goes to the workspaces and the clock first. Replaces the built-in while enabled; disable it to get stock back. Everything but the colour is stock.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "ActiveWindow.qml"
+  },
+  "barWidget": {
+    "displayName": "Active window (dimmed)",
+    "description": "Title of the focused window, a step dimmer than the rest of the bar",
+    "category": "Compositor",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.active-window"
+  }
+}

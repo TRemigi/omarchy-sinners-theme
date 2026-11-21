@@ -14,7 +14,7 @@ Item {
   property Item board: null          // the WoodBoard this is over
   property real seed: 1              // where in the flake noise this board starts, so boards do not wear alike
   property real strength: 0         // chips: 0 is none (shipped); up to 1 puts the board back over a flake completely
-  property real grain: 0.95          // 0 is no grain in the lettering; 1 lets the wood's dark grooves through completely
+  property real grain: 0.5           // 0 is no grain in the lettering; 1 lets the wood's dark grooves through completely
 
   x: board ? board.x : 0
   y: board ? board.y : 0

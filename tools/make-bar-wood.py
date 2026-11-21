@@ -53,8 +53,10 @@ CREAM = theme_colour("foreground")          # the shown workspace's square: the 
 SQ_W, SQ_H = 20, 24                         # logical px; must match plugins/sinners.workspaces' patch
 BOARDS = {"left": (1000, 101), "center": (1000, 202), "right": (700, 303)}   # name: (body width logical, seed)
 # A board's own look, over the shared one. tone scales its brightness. weather (0 to 1) is how weathered it is: fewer cracks and
-# a smoother surface below 1. The clock's board is lighter and calmer than the others, so its decorative lettering reads.
-LOOK = {"center": dict(tone=1.30, weather=0.35)}
+# a smoother surface below 1. The clock's board is calmer than the others, so its decorative lettering reads, and it is lighter for the same
+# reason; the left and right boards are lifted to the same brightness (tone 1.70 puts their median luminance, 0.13 at tone 1, on the clock
+# board's 0.226) but keep their full weathering.
+LOOK = {"left": dict(tone=1.70), "right": dict(tone=1.70), "center": dict(tone=1.30, weather=0.35)}
 DEFAULT_LOOK = dict(tone=1.0, weather=1.0)
 
 # The sign's wood: five tones, the 5th, 25th, 50th, 75th and 95th luminance percentiles of the wood in the film's Club Juke sign. Only these

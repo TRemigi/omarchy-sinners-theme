@@ -8,7 +8,7 @@
 #
 #   usage: tools/preview-wear.sh OUT.png
 #          STRENGTH=0    how much of a flake is the board showing again: the chips (the plugin's default is none)
-#          GRAIN=0.95    how much of the wood's dark grooves show through the paint (the plugin's default)
+#          GRAIN=0.5     how much of the wood's dark grooves show through the paint (the plugin's default)
 #          TEXT="..."    the lettering
 #
 # Needs qt6-shadertools (qsb), gcc with EGL and GLESv2 headers, and ImageMagick; and numpy and Pillow for the composite (see
@@ -19,7 +19,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PLUGIN=$ROOT/plugins/sinners.bar
 OUT=${1:?usage: preview-wear.sh OUT.png}
 STRENGTH=${STRENGTH:-0}
-GRAIN=${GRAIN:-0.95}
+GRAIN=${GRAIN:-0.5}
 TEXT=${TEXT:-Saturday 3:13 PM    gremlin: omarchy-sinners-theme}
 PY=${PYTHON:-python3}
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT

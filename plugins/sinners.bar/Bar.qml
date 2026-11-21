@@ -1976,8 +1976,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Chipped paint on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and
-        // takes no input.
+        // Grain on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and takes no input.
         WornPaint { board: leftBoard; seed: 1 }
 
         WoodBoard {
@@ -2413,10 +2412,8 @@ Item {
       y: root.vertical ? Math.round((sections.height - height) / 2) : 0
     }
 
-    // Chipped paint on the middle board's lettering, as for the left and right (it follows the board, which is shown on a
-    // horizontal bar only). The clock's flourishes are fine strokes that the other boards' grain would break up, so this
-    // board's grain is gentler.
-    WornPaint { board: centerBoard; seed: 3; grain: 0.5 }
+    // Grain on the middle board's lettering, as for the left and right (it follows the board, which is shown on a horizontal bar only).
+    WornPaint { board: centerBoard; seed: 3 }
   }
 
   // The middle of the bar: the center section's widgets, centered as one

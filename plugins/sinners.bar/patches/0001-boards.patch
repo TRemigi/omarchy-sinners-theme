@@ -63,7 +63,7 @@
        }
  
        Loader {
-@@ -1946,23 +1955,51 @@
+@@ -1946,23 +1955,50 @@
            drawn: !barWindow.centerBesideRight
          }
  
@@ -89,8 +89,7 @@
            anchors.verticalCenter: parent.verticalCenter
          }
  
-+        // Chipped paint on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and
-+        // takes no input.
++        // Grain on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and takes no input.
 +        WornPaint { board: leftBoard; seed: 1 }
 +
 +        WoodBoard {
@@ -117,7 +116,7 @@
          // Where a display notch covers the middle of the bar, the center
          // sections run on just left of the right one. They keep their regions,
          // so settings pushes, drag and drop, and panel routing still address
-@@ -2314,7 +2351,7 @@
+@@ -2314,7 +2350,7 @@
      property bool besideRight: false
  
      implicitWidth: root.vertical ? root.barSize : beginList.width + centerBox.width + endList.width
@@ -126,7 +125,7 @@
  
      // Both placements sit at the bar surface's origin or anchor off its edge,
      // so the box's start in the sections is its start on the surface.
-@@ -2333,6 +2370,16 @@
+@@ -2333,6 +2369,16 @@
        function onCenterSectionRevealHeldChanged() { sections.syncPeekEdge() }
      }
  
@@ -143,15 +142,13 @@
      ModuleList {
        id: beginList
        keys: sections.active ? root.layoutWidgets.sections.centerBegin : []
-@@ -2365,6 +2412,11 @@
+@@ -2365,6 +2411,9 @@
        x: root.vertical ? 0 : (sections.besideRight ? beginList.width : Math.round((sections.width - width) / 2))
        y: root.vertical ? Math.round((sections.height - height) / 2) : 0
      }
 +
-+    // Chipped paint on the middle board's lettering, as for the left and right (it follows the board, which is shown on a
-+    // horizontal bar only). The clock's flourishes are fine strokes that the other boards' grain would break up, so this
-+    // board's grain is gentler.
-+    WornPaint { board: centerBoard; seed: 3; grain: 0.5 }
++    // Grain on the middle board's lettering, as for the left and right (it follows the board, which is shown on a horizontal bar only).
++    WornPaint { board: centerBoard; seed: 3 }
    }
  
    // The middle of the bar: the center section's widgets, centered as one

@@ -20,6 +20,9 @@
 #             place while enabled. Meant for the bar below, but it works on any bar.
 #   clock     link the Sinners Clock plugin (plugins/sinners.clock), which draws the clock in the sun's gold and in a flared display face, and enable it. It is
 #             Omarchy's clock widget, copied and patched, and it takes the built-in's place while enabled.
+#   title     link the Sinners Window Title plugin (plugins/sinners.active-window), which draws the window title a step dimmer than the
+#             rest of the lettering, and enable it. It is Omarchy's window-title widget, copied and patched, and it takes the built-in's
+#             place while enabled.
 #   bar       link the Sinners Bar plugin (plugins/sinners.bar), a bar of weathered wooden boards, and switch the
 #             bar to it with `omarchy bar use`. It is Omarchy's own bar with a board behind each section, and it
 #             replaces the bar you have; uninstall switches back to the one you had.
@@ -43,6 +46,8 @@
 #             enabled. Uninstall disables it and removes the link, and Omarchy's own workspaces are back.
 #   clock     the same, for plugins/sinners.clock. It refuses while another plugin that replaces the clock is enabled. Uninstall
 #             disables it and removes the link, and Omarchy's own clock is back.
+#   title     the same, for plugins/sinners.active-window. It refuses while another plugin that replaces the window title is enabled.
+#             Uninstall disables it and removes the link, and Omarchy's own window title is back.
 #   bar       a symlink in ~/.config/omarchy/plugins and the bar named in shell.json (bar.id), through
 #             `omarchy bar use`. The bar you had is remembered, and uninstall switches back to it (only if the
 #             bar is still this one) before it removes the link. Its widgets and their layout are not touched.
@@ -69,7 +74,7 @@ BAR_ID=sinners.bar
 BAR_LIGHT_ID=sinners.bar-light
 BAR_DEFAULT=omarchy.bar
 EXTRAS=(command menu font embers)   # what a bare `install` does
-OPT_IN=(toasts workspaces clock bar bar-light)   # only when named
+OPT_IN=(toasts workspaces clock title bar bar-light)   # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -89,6 +94,7 @@ Not part of "every extra"; name it to use it:
   toasts    replace Omarchy's notification daemon with a copy that burns toasts away into ash
   workspaces  show the shown workspace as its number in a painted square, with a copy of Omarchy's workspaces widget (it dresses to suit either bar)
   clock     draw the clock in a flared display face and a colour of its own, with a copy of Omarchy's clock widget (it dresses to suit either bar)
+  title     draw the window title a step dimmer than the rest of the lettering, with a copy of Omarchy's window-title widget
   bar       replace Omarchy's bar with a bar of weathered wooden boards (a top or bottom bar; a side bar looks stock)
   bar-light the same on light boards, the warm grey wood of the film's sign, with dark lettering
 
@@ -492,6 +498,27 @@ clock_install() {
 }
 clock_uninstall() { plugin_uninstall clock sinners.clock "Omarchy's own clock is back; if it does not return at once, run: omarchy restart shell"; }
 clock_status()    { plugin_status clock sinners.clock; }
+
+# --- title ----------------------------------------------------------------------------------------------
+#
+# Omarchy's window-title widget with the title a step dimmer than the rest of the lettering: a clone, so enabling it replaces the
+# built-in and disabling it brings the built-in back, as with the clock and the workspaces.
+
+title_check() {
+  plugin_check sinners.active-window ActiveWindow.qml
+  command -v jq >/dev/null || fail "jq is needed to check for another window-title plugin"
+  local other
+  other=$(other_clones omarchy.active-window sinners.active-window)
+  if [[ -n $other ]]; then
+    fail "$(echo $other) already replaces Omarchy's window title, and two cannot both do it. Disable it first (omarchy plugin disable $(echo $other | cut -d' ' -f1)), then run this again."
+  fi
+  return 0
+}
+title_install() {
+  plugin_install title sinners.active-window "The window title is a step dimmer. If the bar looks unchanged, run: omarchy restart shell"
+}
+title_uninstall() { plugin_uninstall title sinners.active-window "Omarchy's own window title is back; if it does not return at once, run: omarchy restart shell"; }
+title_status()    { plugin_status title sinners.active-window; }
 
 # --- bars ------------------------------------------------------------------------------------------------
 #
