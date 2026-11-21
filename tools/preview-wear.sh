@@ -8,6 +8,7 @@
 #
 #   usage: tools/preview-wear.sh OUT.png
 #          STRENGTH=0.7  how much of a flake is the board showing again (the plugin's default)
+#          GRAIN=0.55    how much of the wood's dark grooves show through the paint (the plugin's default)
 #          TEXT="..."    the lettering
 #
 # Needs qt6-shadertools (qsb), gcc with EGL and GLESv2 headers, and ImageMagick; and numpy and Pillow for the composite (see
@@ -18,6 +19,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PLUGIN=$ROOT/plugins/sinners.bar
 OUT=${1:?usage: preview-wear.sh OUT.png}
 STRENGTH=${STRENGTH:-0.7}
+GRAIN=${GRAIN:-0.55}
 TEXT=${TEXT:-Saturday 3:13 PM    gremlin: omarchy-sinners-theme}
 PY=${PYTHON:-python3}
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -32,7 +34,7 @@ magick -size 440x36 xc:none -font /usr/share/fonts/noto/NotoSans-CondensedBlack.
   -gravity West -annotate +8+0 "$TEXT" -depth 8 "$T/text.pam"
 
 # Mesa's surfaceless platform runs without a display or a GPU.
-EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 SOURCE="$T/board.pam" FLOATS="strength=$STRENGTH" \
+EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 SOURCE="$T/board.pam" FLOATS="strength=$STRENGTH,grain=$GRAIN" \
   VEC2="size=440:36,offset=137:11" "$T/harness" "$T/wear.gles" 440 36 0 0 0 0 "$T/flakes.pam"
 
 "$PY" -I - "$T" "$OUT" <<'PY'
@@ -57,7 +59,8 @@ worn = flakes[..., :3] + stock * (1 - flakes[..., 3:4])                         
 
 ink = text[..., 3] > 0.6
 chipped = ink & (np.abs(worn - stock).sum(-1) > 0.35)
-print(f"lettering pixels: {int(ink.sum())}, chipped away: {int(chipped.sum())} ({100 * chipped.sum() / ink.sum():.1f}%)")
+touched = ink & (np.abs(worn - stock).sum(-1) > 0.08)
+print(f"lettering pixels: {int(ink.sum())}, touched by wear or grain: {int(touched.sum())} ({100 * touched.sum() / ink.sum():.1f}%), chipped away: {int(chipped.sum())} ({100 * chipped.sum() / ink.sum():.1f}%)")
 bare = ~ink & (text[..., 3] < 0.05)
 print(f"bare board pixels the flakes change (should be about none): {int((bare & (np.abs(worn - stock).sum(-1) > 0.03)).sum())} of {int(bare.sum())}")
 

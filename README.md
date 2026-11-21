@@ -286,7 +286,12 @@ the patch (`fontFamily`), so nothing is cloned. Over each board's widgets, `Worn
 board's own picture again, kept only in small flakes stretched along the grain (`shaders/wear.frag`; the flakes are noise made in
 the shader, no picture). On bare board that is the board over itself, which changes nothing; over a letter it puts the board's red
 back on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked at full strength, and about 6% of the lettering's
-pixels are chipped away; `strength` in `WornPaint.qml` (0.7) sets how completely a flake shows the board, and 0 is off; it barely changes how many letters are chipped. Nothing redraws or hides a widget, so the text and
+pixels are chipped away; `strength` in `WornPaint.qml` (0.7) sets how completely a flake shows the board, and 0 is off; it barely changes how many letters are chipped.
+The same overlay gives the lettering the wood's grain, so it looks painted on the board and not laid over it: wherever the board is
+darker than the board a few pixels above and below it (the grain runs along the bar, so that is where grain lines, cracks and pits are),
+the board is let through, a little, and the lettering gets the wood's dark lines across it while the cream between them stays bright.
+`grain` in `WornPaint.qml` (0.55) sets how much; 0 is off. At that setting about 40% of the lettering's pixels are touched by wear or
+grain, and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and `STRENGTH=`). Nothing redraws or hides a widget, so the text and
 icons are exactly as the shell draws them, clicks and hover never see the overlay (it takes no input), and if its shader cannot run it
 draws nothing. `tools/preview-wear.sh out.png` renders the effect on software GL, the lettering without the flakes above and with
 them below, and prints how much it chipped.
