@@ -2,7 +2,7 @@
 # Generates a palette-only sun wallpaper.
 #   usage: make-wallpaper.sh out.png                 the wallpaper
 #          make-wallpaper.sh out.png --sun-layer     only the sun, on a transparent canvas (see below)
-# Layers, bottom to top: the sky, the sun's halo, its ring and the disc, then the horizon haze and the ground, then
+# Layers, bottom to top: the sky, with its clouds, the sun's halo, its ring and the disc, then the horizon haze and the ground, then
 # film grain.
 set -e
 W=3840; H=2160; CX=1920; CY=940; R=600
@@ -16,6 +16,54 @@ GROUND=${SINNERS_GROUND:-1}; if [[ ${2:-} == --sun-layer ]]; then GROUND=0; fi
 # 1. sky: scorched brown glow fading to the background black
 magick -size ${W}x${H} -define gradient:center=${CX},${CY} -define gradient:radii=2300,1600 \
   radial-gradient:'#5A1F0F-#1A0905' $T/sky.png
+
+# 1b. clouds. Measured on the poster, in the clean sky beside the head (top corners, and the sides below them): dark cloud is
+# about as dark as this sky's far edge (rgb 30,10,5), the gaps between clouds show a saturated red glow, 2 to 3 times
+# brighter (rgb 95-160, 25-35, 4), and the clouds are big soft masses: their brightness varies by 10-12% at 20-50px
+# of this wallpaper and only 2-5% at 3-7px, with ragged tops and an orange light along their edges where the sun reaches
+# them. They are in the upper sky, and the horizon haze takes over below. They are cut from fractal noise stretched
+# CLOUD_ASPECT times wider than tall, in five octaves, as dark bodies over a lit red sky. Subtle on purpose: the
+# strengths below are well under the poster's. This is the sky only, so the halo, ring and disc go over it: the glow
+# beside the sun lights the clouds there, and the sun's rim stays sharp against a dark cloud, as on the poster.
+# SINNERS_CLOUDS=0 leaves them out.
+CLOUDS=${SINNERS_CLOUDS:-1}
+CLOUD_ASPECT=3.2; CLOUD_LIT=0.50; CLOUD_RIM=0.40; CLOUD_DARK=0.36
+if [[ $CLOUDS == 1 && ${2:-} != --sun-layer ]]; then
+  # Built at a quarter of the size, and scaled up: the clouds are soft, and it is four times faster.
+  # the field: five noises, each looked up smoothly at its own size (the number is the size of its features, in pixels of the
+  # whole wallpaper, across; they are CLOUD_ASPECT times shorter than that), each divided by its own spread and weighted;
+  # the sum is stored as 0.5 + 0.15 per unit, so that 16 bits hold it with room.
+  CW=$((W/4)); CH=$((H/4)); k=0; fargs=(); fw=()
+  for spec in "8101 700 1.00" "8202 350 0.85" "8303 175 0.55" "8404 90 0.25" "8505 45 0.10"; do
+    read -r cseed csize cweight <<< "$spec"
+    crows=$(awk -v h=$H -v a=$CLOUD_ASPECT -v c=$csize 'BEGIN{printf "%d", h*a/c+3}')
+    magick -seed $cseed -size $((W/csize+3))x${crows} xc:gray50 +noise Gaussian -colorspace Gray -depth 16 \
+      -filter Cubic -resize ${CW}x${CH}! -depth 16 $T/cloud_$k.png
+    fargs+=( $T/cloud_$k.png ); fw+=( "$cweight/$(magick $T/cloud_$k.png -format '%[fx:standard_deviation]' info:)" ); k=$((k+1))
+  done
+  cnorm=$(awk 'BEGIN{printf "%.4f", sqrt(1+0.7225+0.3025+0.0625+0.01)}')
+  magick "${fargs[@]}" -fx "0.5+0.15*( (u[0]-0.5)*${fw[0]} + (u[1]-0.5)*${fw[1]} + (u[2]-0.5)*${fw[2]} + (u[3]-0.5)*${fw[3]} + (u[4]-0.5)*${fw[4]} )/$cnorm" \
+    -depth 16 $T/cloud_field.png
+  # cover: 1 inside a dark cloud, 0 in the clear, with a wide, soft, ragged edge; fading out toward the horizon, from row
+  # 650 to 1250 (the haze begins about 500px above the horizon).
+  magick $T/cloud_field.png -fx "
+    ff=(u[0]-0.5)/0.15; cc=min(1,max(0,(ff-0.05)/1.7)); cc=cc*cc*(3-2*cc);
+    wz=1-min(1,max(0,(j*4-650)/600)); wz=wz*wz*(3-2*wz); cc*wz" -depth 16 $T/cloud_cover.png
+  # the cloud's body is darker than the sky: a multiplier (1 in the clear)
+  magick $T/cloud_cover.png -evaluate Multiply -$CLOUD_DARK -evaluate Add 1 -filter Cubic -resize ${W}x${H}! -depth 16 $T/cloud_dark.png
+  # the gaps are lit with a red glow, scaled by how clear it is (the cover is already faded out toward the horizon, and so
+  # the glow is, through the factor below, which is 1 where the cover fade has not begun: it is made from the same wz)
+  magick $T/cloud_cover.png -fx "
+    wz=1-min(1,max(0,(j*4-650)/600)); wz=wz*wz*(3-2*wz); (wz-u[0])*$CLOUD_LIT" -depth 16 -filter Cubic -resize ${W}x${H}! -depth 16 $T/cloud_lit.png
+  # the rim: a thin orange light along the lower edge of a cloud, the side facing the sun: where the cover above a point is
+  # more than at the point itself
+  magick $T/cloud_cover.png \( +clone -roll +0+3 \) -fx "max(0,u[1]-u[0])*$CLOUD_RIM" -depth 16 -filter Cubic -resize ${W}x${H}! -depth 16 $T/cloud_rim.png
+  magick $T/sky.png $T/cloud_dark.png -compose Multiply -composite \
+    \( -size ${W}x${H} xc:'rgb(78,16,3)' $T/cloud_lit.png -compose Multiply -composite \) -compose Plus -composite \
+    \( -size ${W}x${H} xc:'rgb(150,44,5)' $T/cloud_rim.png -compose Multiply -composite \) -compose Plus -composite \
+    -depth 16 $T/sky_c.png
+  mv $T/sky_c.png $T/sky.png
+fi
 
 # 2. halo: a blurred disc used as an alpha mask (masks are forced to opaque gray first).
 # Measured on the poster, in rings just outside the sun's rim: below the sun's centre line the glow is strong and

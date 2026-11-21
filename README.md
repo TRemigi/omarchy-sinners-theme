@@ -37,7 +37,11 @@ and it never removes a package. Every check for every extra you select runs befo
   The sun follows the one on the poster, measured from it. Its color runs gold at the top, through orange, to a
   red-orange below the middle, which is what lets a yellow title read on it. The yellow does not run to the edge:
   above the horizon the rim is a thin orange-to-red ring with a dark outer glow, as on the poster. Its glow is
-  warm and strong beside the lower half and almost absent above the center line. It carries a faint seeded grain
+  warm and strong beside the lower half and almost absent above the center line. The upper sky has the poster's
+  clouds, subtly: big soft, dark, ragged-topped masses, stretched wide, over a red-lit sky, with a faint orange light along
+  their undersides where the sun reaches them. They pass behind the sun, so its rim stays sharp against a dark cloud, and
+  they fade out toward the horizon haze. They are drawn from fractal noise at the sizes measured on the poster and are
+  well under its strength; `SINNERS_CLOUDS=0` leaves them out. It carries a faint seeded grain
   with a little mottle. Below the sun it has the poster's horizon and ground: a red haze, smoky
   and uneven, along the horizon, which the sun's lower rim sinks into, and below it a dark maroon ground of fine, crisp grit,
   darkening toward the bottom. The horizon sits 3.6% of the sun's diameter below the
