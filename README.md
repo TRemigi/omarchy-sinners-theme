@@ -18,6 +18,8 @@ Then the extras, which are separate from the theme and optional:
     bin/extras status           # what is installed
     bin/extras uninstall        # undo everything; the font goes back to what it was
     bin/extras install toasts   # not part of "everything", because it replaces something: see Toasts that burn away
+    bin/extras install bar      # likewise, because it replaces your bar: see A bar of boards
+    bin/extras install workspaces  # likewise, because it replaces the workspaces widget: the gold plate, see A bar of boards
 
 | Extra | What it does |
 | --- | --- |
@@ -78,7 +80,12 @@ and it never removes a package. Every check for every extra you select runs befo
   smoke, below).
 - `plugins/sinners.notifications/`: Omarchy's notification plugin, copied and patched so that toasts burn away into ash
   (see Toasts that burn away, below). Opt-in.
-- `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, and for the sun screen
+- `plugins/sinners.bar/`: Omarchy's bar with a weathered wooden board behind each of its three sections (see A bar of
+  boards, below). Opt-in.
+- `plugins/sinners.workspaces/`: Omarchy's workspaces widget, copied and patched to put the shown workspace on a gold
+  plate (see A bar of boards, below). Opt-in.
+- `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, `make-bar-wood.py` (with
+  `woodlib.py`, which also draw the gold plate), and for the sun screen
   `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`. Checks: `check-hyprland.sh` for
   `hyprland.lua`; `check-notifications-upstream.sh`, which tells you whether the notification fork has fallen behind
   Omarchy; and `check-burn-completes.sh`, which renders the burn's last frame for 25 seeds and four card sizes and
@@ -238,6 +245,67 @@ them into the daemon has been parsed (`qmllint`) and the plugin validated, but i
 real shell. Edit a shader, then run `plugins/sinners.notifications/build-shaders.sh`; the compiled `.qsb` files are
 committed. The fire's arrival field is written once, in `burn.frag`, and the build copies it into `ash.frag`, so the
 ash and the light always come from where the fire really is.
+
+## A bar of boards
+
+`plugins/sinners.bar` is Omarchy's own bar with a weathered wooden board behind each of its three sections: the left
+(menu, workspaces, window title), the middle (the clock and what hangs off it) and the right (tray and status). The
+boards are the barn-red paint of the sawmill in the film's design drawings, worn through to grey wood along the grain
+and at the edges, with a ragged sawn end and two nail heads at each end, hung a little way below the top of the screen
+with a shadow under them. Each board is as long as the widgets on it, so one grows when a widget is added. Between the
+boards the wallpaper shows. A left or right bar looks stock, because only a horizontal bar has boards.
+
+It replaces the bar you have, so it is opt-in. To use it, and to go back:
+
+    bin/extras install bar      # link it into ~/.config/omarchy/plugins and switch to it
+    bin/extras uninstall bar    # switch back to the bar you had, then remove the link
+    bin/extras status bar
+
+or by hand, which is all `install` does: `ln -s "$PWD/plugins/sinners.bar" ~/.config/omarchy/plugins/sinners.bar`, then
+`omarchy bar use sinners.bar` (to go back: `omarchy bar reset`, or `omarchy bar use <the id you had>`). If the bar looks
+unchanged, `omarchy restart shell`. Your widgets and their layout are not touched.
+
+**The gold plate.** In the stock bar the shown workspace is its layout glyph, with no plate. `plugins/sinners.workspaces`
+is Omarchy's workspaces widget with one change: the shown workspace sits on a small board painted sign-gold
+(`plate.png`, from the same generator), its glyph in dark paint on top. It is a clone, so enabling it replaces the
+built-in and disabling it brings the built-in back, as with the toasts; it refuses while another clone of the
+workspaces is enabled. It is its own extra and works on any bar, but is meant for this one:
+
+    bin/extras install workspaces      # link it and enable it
+    bin/extras uninstall workspaces    # Omarchy's own workspaces are back
+
+by hand: `ln -s "$PWD/plugins/sinners.workspaces" ~/.config/omarchy/plugins/sinners.workspaces`, then
+`omarchy plugin enable sinners.workspaces` (to go back: `omarchy plugin disable sinners.workspaces`). `build.sh` and
+`--check` work as for the bar.
+
+**How it is made.** The wood is not drawn by the shell: `tools/make-bar-wood.py` draws every board once, as PNGs in
+`plugins/sinners.bar/wood/`, and `WoodBoard.qml` cuts those pictures to each section's length. Each board is three
+pictures (a long body and the two ends), because the length is not known until the widgets are. The wood itself is
+procedural (`tools/woodlib.py`): grain that flows round knots, grain lines that break up and fade, checks that run
+along the grain with ragged edges and pale lips, paint that wicks along the grain and wears off the dark late-wood, the
+edges and the ends, and nails with rust streaked down the grain below them. It is original work: no photograph or film
+frame is sampled or traced. It needs numpy, scipy and Pillow, which Omarchy does not install, so the PNGs are committed
+and only changing the look needs them: `python -m venv /tmp/wood && /tmp/wood/bin/pip install numpy scipy pillow`, then
+`/tmp/wood/bin/python tools/make-bar-wood.py`.
+
+**The bar itself.** `Bar.qml` and `BarModel.js` are generated by `plugins/sinners.bar/build.sh` from the bar installed
+with Omarchy plus `patches/0001-boards.patch` (eight small hunks). They are committed so the plugin installs from this
+repo alone; do not edit them, change the patch. The patch makes a horizontal bar's strip 36 px tall (a board is 30 of
+that, and the shadow has to be inside the strip, because a layer surface cannot draw outside itself), paints nothing
+behind the boards, and sets the left and right sections 17 px further in from the screen's edge (a board reaches 17 px past its widgets, to keep them clear of the nails). Widgets still size
+themselves by the stock bar height and are centred on the board. `build.sh --check` says whether Omarchy has changed its
+bar since the copy was made (`UPSTREAM` records which version, and hashes), and `build.sh` rebuilds it. As with the
+toasts, this copy does not receive Omarchy's later fixes to the bar until you rebuild it.
+
+**What has and has not been checked.** The manifest validates (`omarchy plugin validate`), Omarchy's catalog lists
+`sinners.bar` as a bar option (the check `omarchy bar use` makes), the patched `Bar.qml` parses with Qt 6.12's
+`qmllint` and gives no kind of warning the stock file does not, and `WoodBoard.qml` was rendered in real Qt, headless, at
+two bar heights and looked at. `bin/extras` was run against a stub `omarchy` and temporary files, through install,
+a second install, status and uninstall, including restoring a previous bar. **It has not been run in the live shell**, which needs a
+compositor: whether the widgets sit squarely on the boards, how the popups and the tray drawer behave, and whether
+Hyprland's blur leaves a halo round the boards' shadows are not known. The cream text is the stock widgets' own colour from
+the theme, not the hand-painted lettering of the mockups. The gold plate's widget is checked the same way (validated, parsed,
+and its extra run against a stub); where the plate sits on the glyph, and whether the dark glyph colour takes, are not known.
 
 ## Palette provenance
 

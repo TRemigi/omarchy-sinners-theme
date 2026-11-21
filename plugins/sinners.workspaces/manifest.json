@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "sinners.workspaces",
+  "name": "Sinners Workspaces",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "Omarchy's workspaces widget with the shown workspace on a painted gold plate, for the Sinners bar. Replaces the built-in while enabled; disable it to get stock back. Everything but the plate is stock.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Workspaces.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspaces (gold plate)",
+    "description": "Workspace number indicators, the shown one on a gold plate",
+    "category": "Compositor",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.workspaces"
+  }
+}
