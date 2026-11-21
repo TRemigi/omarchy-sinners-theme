@@ -332,7 +332,8 @@ red and blue edges, so it was dropped.
 
 **How it is made.** The wood is not drawn by the shell: `tools/make-bar-wood.py` draws every board once, as PNGs in
 `plugins/sinners.bar/wood/`, and `WoodBoard.qml` cuts those pictures to each section's length. Each board is three
-pictures (a long body and the two ends), because the length is not known until the widgets are. The wood itself is
+pictures (a long body and the two ends), because the length is not known until the widgets are. The ends are drawn as separate small pieces of wood, so
+each is scaled to the tone of its board's body when it is drawn; without that, one end can come out several times darker than the board. The wood itself is
 procedural (`tools/woodlib.py`): grain that flows round knots, grain lines that break up and fade, checks that run
 along the grain with ragged edges and pale lips, paint that wicks along the grain and wears off the dark late-wood, the
 edges and the ends, and nails with rust streaked down the grain below them. It is original work: no photograph or film

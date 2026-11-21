@@ -58,8 +58,10 @@ TOP_PX, BH = TOP * SS, BOARD_H * SS
 def wood_canvas(rng, w, ragged_end=False):
     """The board's rows only (BH x w): charred cypress with some of its oxblood paint left on it, shaded, as float RGB, plus the end
     profile if any. The paint is in worn patches, stretched along the grain, that cover PAINT_LEFT of the board."""
+    # The slow swings of tone (blotch) are for a long board. On a short piece, such as an end cap, they are one random offset, so
+    # they are damped there; the cap is also scaled to its body's tone (see cap()).
     v, hg, cr = make_wood(BH, w, rng, ring=(6.0, 12.0), lift=0.05, knots=int(rng.random() < 0.4),
-                          crack_rate=1 / 900, crack_y="edges")
+                          crack_rate=1 / 900, crack_y="edges", blotch=1.0 if w > 400 else 0.3)
     rgb = 0.55 * BROWN(v - 0.04) + 0.45 * DARK(v)       # the wood: dark, weathered, a little warm
     Yd = np.arange(BH, dtype=np.float32)[:, None]
     vedge = np.minimum(Yd, BH - 1 - Yd)               # distance from the top or bottom edge
@@ -125,7 +127,13 @@ def body(name, wlog, seed):
     return assemble(rgb, np.ones((BH, w), np.float32), shadow_rows(w))
 
 
-def cap(name, seed, flip):
+def luma(rgb):
+    return (rgb * np.array([0.2126, 0.7152, 0.0722], np.float32)).sum(-1)
+
+
+def cap(name, seed, flip, target):
+    """An end cap. target is the median luminance of the board's body: the cap is scaled to match it, because it is drawn as a
+    separate small piece of wood whose overall tone is a random draw, and one drew a right cap a fifth as bright as its board."""
     rng = np.random.default_rng(seed)
     w = CAP_W * SS
     rgb, hg, xl = wood_canvas(rng, w, ragged_end=True)
@@ -133,6 +141,9 @@ def cap(name, seed, flip):
     for ny in (8 * SS, BH - 8 * SS):                    # a pair of nails, 11 logical px in from the end
         nail(rgb, hg, END_AT * SS + 11 * SS + rng.normal(0, 1.0), ny + rng.normal(0, 1.0), rng, r=1.9 * SS)
     rgb = lit(rgb, hg)
+    # match the body's tone, measured on the stretch that is opaque and clear of the sawn end's darkening and of the nails
+    here = np.median(luma(rgb[:, 14:26]))                # columns, in this cap's 2x pixels: 7 to 13 logical px from its edge
+    rgb = np.clip(rgb * float(np.clip(target / max(here, 1e-4), 0.5, 6.0)), 0, 1)
     inner = smooth(w, w - 16 * SS, X) * np.ones((BH, 1), np.float32)         # fades into the body underneath
     board_alpha = np.clip(X - xl + 0.5, 0, 1) * inner
     sh = shadow_rows(w) * np.clip((X - END_AT * SS) / 6.0, 0, 1) * smooth(w, w - 16 * SS, X)
@@ -218,9 +229,11 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugins", "sinners.bar", "wood")
     os.makedirs(out, exist_ok=True)
     for name, (wlog, seed) in BOARDS.items():
-        Image.fromarray(body(name, wlog, seed)).save(os.path.join(out, f"{name}-body.png"), optimize=True)
-        Image.fromarray(cap(name, seed + 1, False)).save(os.path.join(out, f"{name}-lcap.png"), optimize=True)
-        Image.fromarray(cap(name, seed + 2, True)).save(os.path.join(out, f"{name}-rcap.png"), optimize=True)
+        b = body(name, wlog, seed)
+        target = float(np.median(luma(b[TOP_PX:TOP_PX + BH, :, :3].astype(np.float32) / 255)))
+        Image.fromarray(b).save(os.path.join(out, f"{name}-body.png"), optimize=True)
+        Image.fromarray(cap(name, seed + 1, False, target)).save(os.path.join(out, f"{name}-lcap.png"), optimize=True)
+        Image.fromarray(cap(name, seed + 2, True, target)).save(os.path.join(out, f"{name}-rcap.png"), optimize=True)
         print("wrote", name)
     wsdir = os.path.join(out, "..", "..", "sinners.workspaces")
     os.makedirs(wsdir, exist_ok=True)
