@@ -11,7 +11,7 @@ Item {
 
   property Item board: null          // the WoodBoard this is over
   property real seed: 1              // where in the flake noise this board starts, so boards do not wear alike
-  property real strength: 0.9        // 0 is no wear; 1 puts the board back over a flake completely
+  property real strength: 0.7       // 0 is no wear; 1 puts the board back over a flake completely
 
   x: board ? board.x : 0
   y: board ? board.y : 0

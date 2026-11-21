@@ -285,8 +285,8 @@ sign painter's, whatever the system font is. The popups the widgets open keep th
 the patch (`fontFamily`), so nothing is cloned. Over each board's widgets, `WornPaint.qml` draws chipped paint: it draws the
 board's own picture again, kept only in small flakes stretched along the grain (`shaders/wear.frag`; the flakes are noise made in
 the shader, no picture). On bare board that is the board over itself, which changes nothing; over a letter it puts the board's red
-back on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked, and about 6% of the lettering's
-pixels are chipped away; `strength` in `WornPaint.qml` sets it, and 0 is off. Nothing redraws or hides a widget, so the text and
+back on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked at full strength, and about 6% of the lettering's
+pixels are chipped away; `strength` in `WornPaint.qml` (0.7) sets how completely a flake shows the board, and 0 is off; it barely changes how many letters are chipped. Nothing redraws or hides a widget, so the text and
 icons are exactly as the shell draws them, clicks and hover never see the overlay (it takes no input), and if its shader cannot run it
 draws nothing. `tools/preview-wear.sh out.png` renders the effect on software GL, the lettering without the flakes above and with
 them below, and prints how much it chipped.
