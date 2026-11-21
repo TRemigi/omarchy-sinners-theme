@@ -38,10 +38,21 @@ and it never removes a package. Every check for every extra you select runs befo
   red-orange below the middle, which is what lets a yellow title read on it. The yellow does not run to the edge:
   above the horizon the rim is a thin orange-to-red ring with a dark outer glow, as on the poster. Its glow is
   warm and strong beside the lower half and almost absent above the center line. It carries a faint seeded grain
-  with a little mottle. It does not use studio artwork.
+  with a little mottle. Below the sun it has the poster's horizon and ground, without the figures: a red haze, smoky
+  and uneven, along the horizon, which the sun's lower rim sinks into, and below it a dark maroon ground, gritty and
+  streaked sideways near the horizon, darkening to near black. The horizon sits 3.6% of the sun's diameter below the
+  sun's rim, as on the poster, and the ground is 27% of the height. The colours are the poster's own median colours
+  at each distance from its horizon (the haze is the poster's; the ground's colours are spread over twice the distance, so
+  it comes out of the haze instead of stepping down from it). The texture is drawn in perspective, as ground seen at
+  a grazing angle is: fine grit at the horizon, flattened into streaks, growing into broad clods and patches of soil near
+  the viewer, and fading in out of the haze. Its overall strength is the poster's (about 20% variation in brightness);
+  its change of scale with depth is not, since on the poster the texture is the same size all the way down. The
+  comments in `make-wallpaper.sh` give the numbers and how they were measured. The poster's sparks over the ground are left to the Embers plugin.
+  It is made from measurements of the poster, and does not use studio artwork.
   `make-wallpaper.sh out.png` writes a PNG; convert it with `magick out.png -quality 92 backgrounds/1-sinners-sun.webp`.
   Earlier versions are kept in `research/wallpapers/` (v1: symmetric red glow and a smooth gold-centered sun; v2: poster colors;
-  v3, the version before the limb ring, is not kept, since it only differs by that ring).
+  v3, the version before the limb ring, is not kept, since it only differs by that ring; v4: the limb ring, texture and
+  title-ready colours, with a plain dark gradient where the ground now is).
 - `icons.theme`: GTK icon theme (`Yaru-red`).
 - `hyprland.lua`: the window borders (the gradient from `colors.toml`) and a faint orange glow on the focused window,
   made with Hyprland's window shadow: 18px at about 9% of the sun's orange, and none on unfocused windows.
@@ -119,7 +130,8 @@ one screen size, and it is only correct on that one: the default is 1920x1200 (`
     tools/verify-sun.py [WxH]              # checks the alignment against the wallpaper, about two minutes
 
 The sun's size and position are read from `make-wallpaper.sh`, so the two cannot drift apart; rebuild the unlock
-screen after changing the wallpaper. The title spans 92% of the sun's width, as on the poster (measured there), and
+screen after changing the wallpaper, as the haze and the ground over the sun's lower rim are part of its colour (the sun's
+bottom edge sinks into the haze on the unlock screen too). The title spans 92% of the sun's width, as on the poster (measured there), and
 is centered on the sun: on the poster it sits a little low only because it is part of a text block that is itself
 centered. Its lemon on the sun measures 3.1:1, the poster's own contrast. The logo is 1600x960 on a 1920x1200 screen, which puts the password field
 at y=1120. The sun's grain is seeded, so the logo's sun has exactly the wallpaper's pixels. Where it differs: the
