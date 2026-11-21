@@ -42,6 +42,14 @@ and it never removes a package. Every check for every extra you select runs befo
   Earlier versions are kept in `research/wallpapers/` (v1: symmetric red glow and a smooth gold-centered sun; v2: poster colors;
   v3, the version before the limb ring, is not kept, since it only differs by that ring).
 - `icons.theme`: GTK icon theme (`Yaru-red`).
+- `hyprland.lua`: the window borders (the gradient from `colors.toml`) and a faint orange glow on the focused window,
+  made with Hyprland's window shadow: 18px at about 9% of the sun's orange, and none on unfocused windows.
+  Omarchy normally generates this file, but not when a theme ships its own, so the border lines repeat
+  `colors.toml`; `tools/check-hyprland.sh` checks that they match. Omarchy drops every `.lua` from a theme installed
+  from a git repo (your own symlinked copy is exempt), so a theme installed from GitHub gets the plain generated
+  border and no glow. One side effect: Omarchy gives floating workspaces their own shadows only while shadows are
+  off, so with the glow on, a floating workspace follows `hyprland.lua` instead: the focused window glows and the
+  others have no shadow. For a faint dark shadow on unfocused windows, set `color_inactive = "rgba(00000035)"`.
 - `unlock.png`, `preview-unlock.png`: the disk-unlock (Plymouth) wordmark and its switcher preview. Omarchy's
   stock wordmark filled with the sun gradient (gold, orange, red), built by `tools/make-unlock.sh`.
 - `unlock-embers.png`, `preview-unlock-embers.png`: an alternate unlock logo, the same wordmark with a faint red
@@ -54,7 +62,8 @@ and it never removes a package. Every check for every extra you select runs befo
 - `bin/omarchy-sinners-unlock`: the command that picks among the unlock screens above (see below).
 - `bin/extras`: installs, removes and reports the optional extras: the command, its menu row, and the font (see Install).
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, and for the sun screen
-  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`.
+  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`; and `check-hyprland.sh`, which checks
+  `hyprland.lua`.
 - `research/`: how the theme was made. Omarchy does not read it. `palette.toml` is the first palette notes, superseded
   by `colors.toml`; `images/` has the swatch sheet and comparison mock-ups; `wallpapers/` has earlier wallpapers.
   A `poster-comparisons/` folder holds images that crop the poster. It stays on the machine it was made on and is
