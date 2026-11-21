@@ -14,7 +14,7 @@ It is deterministic: the same code writes the same files.
 Original work: the wood, paint and nails are procedural (tools/woodlib.py). No photograph or film frame is sampled or
 traced. See "A bar of boards" in the README.
 
-It also draws wear.png, a tileable mask of where the paint on the lettering has chipped (see WornPaint.qml), and the gold plate behind the shown workspace (plugins/sinners.workspaces/plate.png): a small board painted
+It also draws the gold plate behind the shown workspace (plugins/sinners.workspaces/plate.png): a small board painted
 sign-gold, 19 x 24 logical px with its shadow below.
 
 Each board is three files, because a board's length depends on the widgets on it:
@@ -27,7 +27,7 @@ board's shadow on the wallpaper, drawn into the image because a layer surface ca
 import os, sys
 import numpy as np
 from PIL import Image
-from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from woodlib import SS, smooth, make_wood, paint, nail, shade, SILVER, BROWN
@@ -117,22 +117,6 @@ def cap(name, seed, flip):
     return img[:, ::-1] if flip else img
 
 
-def wear_mask():
-    """Where the paint has worn off the lettering: flakes stretched along the grain, in a picture that tiles in both directions.
-    512 x 36 logical px. Rank-normalised, so the shader's thresholds pick the same share of it wherever they are set."""
-    rng = np.random.default_rng(505)
-    shape = (36 * SS, 512 * SS)
-
-    def noise(sx, sy):
-        n = gaussian_filter(rng.standard_normal(shape).astype(np.float32), (sy, sx), mode="wrap")
-        return n / n.std()
-
-    n = 0.60 * noise(40, 1.8) + 0.50 * noise(11, 0.9) + 0.35 * noise(220, 7.0)
-    ranks = np.empty(n.size, np.float32)
-    ranks[np.argsort(n, axis=None)] = np.linspace(0, 1, n.size, dtype=np.float32)
-    return (ranks.reshape(shape) * 255 + 0.5).astype(np.uint8)
-
-
 def plate():
     """The gold plate under the shown workspace: wood, gold paint worn at the edges, square-ish corners, a thin shadow."""
     rng = np.random.default_rng(404)
@@ -160,8 +144,6 @@ def main():
         Image.fromarray(cap(name, seed + 1, False)).save(os.path.join(out, f"{name}-lcap.png"), optimize=True)
         Image.fromarray(cap(name, seed + 2, True)).save(os.path.join(out, f"{name}-rcap.png"), optimize=True)
         print("wrote", name)
-    Image.fromarray(wear_mask(), "L").save(os.path.join(out, "wear.png"), optimize=True)
-    print("wrote wear")
     wsdir = os.path.join(out, "..", "..", "sinners.workspaces")
     os.makedirs(wsdir, exist_ok=True)
     Image.fromarray(plate()).save(os.path.join(wsdir, "plate.png"), optimize=True)

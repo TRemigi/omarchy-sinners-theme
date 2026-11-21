@@ -1,44 +1,34 @@
 import QtQuick
 
-// Worn paint over the lettering of one section of the bar. Put it after its target, as a sibling: it takes the target's place
-// and size, draws the target again through shaders/wear.frag (flakes of the text gone), and hides the original.
+// Chipped paint on the lettering of one board of the bar. Put it after the board's widgets, as a sibling: it covers the board
+// and draws the board's own picture over the widgets in small flakes (shaders/wear.frag). On bare board that is the board over
+// itself, which changes nothing; over a letter it puts the board's red back on top of the lettering, as a chip.
 //
-// It hides the original only once the shader has compiled. If the shader cannot run on this machine, nothing is hidden and
-// the text is drawn as the stock bar draws it; the lettering is merely not worn. Clicks, hover and tooltips never see any
-// of this: they belong to the target, which is still there and still visible to them.
+// Nothing here redraws or hides a widget, so their text and icons are exactly as the shell draws them, and clicks, hover and
+// tooltips never see this: it takes no input. If the shader cannot run, it draws nothing, and the lettering is merely unworn.
 Item {
   id: root
 
-  property Item target: null
-  property real seed: 1              // where in the mask this section starts, so sections do not wear alike
-  property real strength: 0.85       // 0 is no wear; 1 takes a flake's paint away entirely
+  property Item board: null          // the WoodBoard this is over
+  property real seed: 1              // where in the flake noise this board starts, so boards do not wear alike
+  property real strength: 0.9        // 0 is no wear; 1 puts the board back over a flake completely
 
-  x: target ? target.x : 0
-  y: target ? target.y : 0
-  width: target ? target.width : 0
-  height: target ? target.height : 0
-
-  Image {
-    id: wearMask
-    source: Qt.resolvedUrl("wood/wear.png")
-    visible: false
-    smooth: true
-  }
+  x: board ? board.x : 0
+  y: board ? board.y : 0
+  width: board ? board.width : 0
+  height: board ? board.height : 0
+  visible: !!board && board.visible && width > 0 && strength > 0
 
   ShaderEffectSource {
-    id: lettering
-    sourceItem: root.target
+    id: boardPicture
+    sourceItem: root.board
     live: true
-    hideSource: root.visible && root.width > 0 && fx.status === ShaderEffect.Compiled
   }
 
   ShaderEffect {
-    id: fx
     anchors.fill: parent
-    visible: root.width > 0 && root.height > 0
 
-    property variant source: lettering
-    property variant wear: wearMask
+    property variant source: boardPicture
     property real strength: root.strength
     property size size: Qt.size(root.width, root.height)
     property size offset: Qt.size(root.seed * 137.0, root.seed * 11.0)

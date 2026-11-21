@@ -6,8 +6,6 @@
 //   shader.frag is the GLES variant: qsb -x "glsl,100 es" -o shader.frag name.frag.qsb
 //   SOURCE=card.pam binds a picture (straight alpha, premultiplied here as Qt's layer textures are) to the
 //     shader's `source` sampler, as a layer effect gets.
-//   WEAR=mask.pam binds a second picture (RGBA PAM, used as it is) to a `wear` sampler on texture unit 2; the bar's
-//     lettering shader reads its mask from there.
 //   FLOATS="progress=0.4,dur=1.2" and VEC2="size=380:76,origin=40:70" set more uniforms by name (ubuf.NAME).
 //   For smoke.frag: AMOUNT (default 0.32) is how much smoke; the sun's position is worked out from W and H the way
 //   the plugin does (the wallpaper is 3840x2160 with its sun at 1920,940 and radius 600, scaled to cover the screen).
@@ -35,31 +33,6 @@ static GLuint compile(GLenum type, const char *src) {
   GLint ok; glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
   if (!ok) { char log[4096]; glGetShaderInfoLog(s, sizeof log, NULL, log); fprintf(stderr, "shader compile failed:\n%s\n", log); exit(2); }
   return s;
-}
-
-// Binds the RGBA PAM named by environment variable `env` to texture unit `unit` as the sampler `name`. premul = 1
-// premultiplies it first (Qt's layer textures are premultiplied). Returns 0 when the variable is unset, else exits on error.
-static int bind_pam(GLuint prog, const char *env, int unit, const char *name, int premul) {
-  if (!getenv(env)) return 0;
-  FILE *f = fopen(getenv(env), "rb"); if (!f) { perror(env); exit(7); }
-  char line[128]; int iw = 0, ih = 0, depth = 4;
-  while (fgets(line, sizeof line, f)) {
-    sscanf(line, "WIDTH %d", &iw); sscanf(line, "HEIGHT %d", &ih); sscanf(line, "DEPTH %d", &depth);
-    if (!strncmp(line, "ENDHDR", 6)) break;
-  }
-  if (iw <= 0 || ih <= 0 || depth != 4) { fprintf(stderr, "%s must be an RGBA PAM\n", env); exit(7); }
-  unsigned char *img = malloc((size_t)iw * ih * 4);
-  if (fread(img, 1, (size_t)iw * ih * 4, f) != (size_t)iw * ih * 4) { fprintf(stderr, "%s is short\n", env); exit(7); }
-  fclose(f);
-  if (premul) for (size_t i = 0; i < (size_t)iw * ih; i++) for (int c = 0; c < 3; c++) img[i * 4 + c] = (unsigned char)(img[i * 4 + c] * img[i * 4 + 3] / 255.f + 0.5f);
-  GLuint tx; glActiveTexture(GL_TEXTURE0 + unit); glGenTextures(1, &tx); glBindTexture(GL_TEXTURE_2D, tx);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, iw, ih, 0, GL_RGBA, GL_UNSIGNED_BYTE, img);   // first row = top, v = 0
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glUniform1i(glGetUniformLocation(prog, name), unit);
-  glActiveTexture(GL_TEXTURE0);
-  free(img);
-  return 1;
 }
 
 int main(int argc, char **argv) {
@@ -110,10 +83,27 @@ int main(int argc, char **argv) {
       free(copy);
     } }
 
-  // A picture for the `source` sampler (texture unit 1, as in Qt's layer effects), from a PAM with straight alpha; and
-  // optionally a second for `wear` (unit 2).
-  bind_pam(prog, "SOURCE", 1, "source", 1);
-  bind_pam(prog, "WEAR", 2, "wear", 0);
+  // A picture for the `source` sampler (texture unit 1, as in Qt's layer effects), from a PAM with straight alpha.
+  if (getenv("SOURCE")) {
+    FILE *f = fopen(getenv("SOURCE"), "rb"); if (!f) { perror("SOURCE"); return 7; }
+    char line[128]; int iw = 0, ih = 0, depth = 4;
+    while (fgets(line, sizeof line, f)) {
+      sscanf(line, "WIDTH %d", &iw); sscanf(line, "HEIGHT %d", &ih); sscanf(line, "DEPTH %d", &depth);
+      if (!strncmp(line, "ENDHDR", 6)) break;
+    }
+    if (iw <= 0 || ih <= 0 || depth != 4) { fprintf(stderr, "SOURCE must be an RGBA PAM\n"); return 7; }
+    unsigned char *img = malloc((size_t)iw * ih * 4);
+    if (fread(img, 1, (size_t)iw * ih * 4, f) != (size_t)iw * ih * 4) { fprintf(stderr, "SOURCE is short\n"); return 7; }
+    fclose(f);
+    for (size_t i = 0; i < (size_t)iw * ih; i++) for (int c = 0; c < 3; c++) img[i * 4 + c] = (unsigned char)(img[i * 4 + c] * img[i * 4 + 3] / 255.f + 0.5f);
+    GLuint st; glActiveTexture(GL_TEXTURE1); glGenTextures(1, &st); glBindTexture(GL_TEXTURE_2D, st);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, iw, ih, 0, GL_RGBA, GL_UNSIGNED_BYTE, img);   // first row = top, v = 0
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glUniform1i(glGetUniformLocation(prog, "source"), 1);
+    glActiveTexture(GL_TEXTURE0);
+    free(img);
+  }
 
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);

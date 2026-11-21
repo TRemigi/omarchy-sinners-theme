@@ -1959,6 +1959,7 @@ Item {
         // are 11 in from the end, so the widgets stay clear of them), so the sections are set in from the edge by 17 more than
         // the stock bar's 8.
         WoodBoard {
+          id: leftBoard
           name: "left"
           visible: leftModules.width > 0
           x: leftModules.x - Style.space(17)
@@ -1975,11 +1976,12 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Worn paint on each section's lettering (see WornPaint.qml). It draws over its section and hides it only once its
-        // shader has compiled; clicks and hover still go to the section.
-        WornPaint { target: leftModules; seed: 1 }
+        // Chipped paint on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and
+        // takes no input.
+        WornPaint { board: leftBoard; seed: 1 }
 
         WoodBoard {
+          id: rightBoard
           name: "right"
           visible: rightModules.width > 0
           x: rightModules.x - Style.space(17)
@@ -1996,7 +1998,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
         }
 
-        WornPaint { target: rightModules; seed: 2 }
+        WornPaint { board: rightBoard; seed: 2 }
 
         // Where a display notch covers the middle of the bar, the center
         // sections run on just left of the right one. They keep their regions,
@@ -2370,6 +2372,7 @@ Item {
 
     // The middle of a horizontal bar is one board: what hangs off the clock's start, the clock, and what hangs off its end.
     WoodBoard {
+      id: centerBoard
       name: "center"
       visible: !root.vertical && sections.active && width > 2 * Style.space(17)
       x: beginList.x - Style.space(17)
@@ -2410,10 +2413,9 @@ Item {
       y: root.vertical ? Math.round((sections.height - height) / 2) : 0
     }
 
-    // Worn paint on the three groups of the middle board's lettering, as for the left and right (horizontal bars only).
-    WornPaint { target: beginList; seed: 3; visible: !root.vertical && sections.active }
-    WornPaint { target: centerBox; seed: 4; visible: !root.vertical && sections.active }
-    WornPaint { target: endList; seed: 5; visible: !root.vertical && sections.active }
+    // Chipped paint on the middle board's lettering, as for the left and right (it follows the board, which is shown on a
+    // horizontal bar only).
+    WornPaint { board: centerBoard; seed: 3 }
   }
 
   // The middle of the bar: the center section's widgets, centered as one
