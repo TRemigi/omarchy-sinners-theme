@@ -270,10 +270,13 @@ BarWidget {
         Layout.topMargin: firstGuest && root.vertical ? Style.space(6) : 0
 
         bar: root.bar
-        // The shown workspace sits on a painted gold plate (plate.png, 19 x 24 with its shadow), its layout glyph in dark paint
-        // on it. Everything else about the widget is stock.
-        foreground: shown ? "#2B0D06" : (bar ? bar.barForeground : "#E8C48C")
-        text: shown ? root.modeGlyph(root.activeMode) : (slot === root.slots ? "0" : String(slot))
+        // The shown workspace is its number, in the theme's red (bar.urgent: the bar's "active" colour) and a heavy serif of its own,
+        // inside a painted cream square (PaintedSquare.qml). It no longer shows the layout glyph; pressing it still cycles
+        // the layout. Everything else about the widget is stock.
+        foreground: shown ? (bar ? bar.urgent : "#E91A02") : (bar ? bar.barForeground : "#E8C48C")
+        fontFamily: shown ? "Noto Serif Black" : (bar ? bar.fontFamily : Style.font.family)
+        fontSize: shown ? Style.font.body + 4 : Style.font.body
+        text: slot === root.slots ? "0" : String(slot)
         opacity: occupied || shown ? 1 : 0.5
         horizontalMargin: 6
         verticalPadding: 6
@@ -285,14 +288,12 @@ BarWidget {
         }
         onWheelMoved: function(delta) { root.scrollWorkspaces(delta) }
 
-        Image {
+        PaintedSquare {
           z: -1
           visible: shown
           anchors.centerIn: parent
-          width: Style.space(19)
-          height: Style.space(25)
-          source: Qt.resolvedUrl("plate.png")
-          smooth: true
+          width: Style.space(20)
+          height: Style.space(24)
         }
       }
     }

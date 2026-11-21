@@ -2,7 +2,7 @@
 
 // Chipped paint on the bar's lettering. This is drawn over a section's widgets, and what it draws is the board under them: a picture
 // of the board (`source`), kept only in small flakes stretched along the grain. On bare board that is the board over itself, which
-// changes nothing; over a letter it puts the board's own red back on top of the lettering, as a chip where the paint has worn
+// changes nothing; over a letter it puts the board's own picture back on top of the lettering, as a chip where the paint has worn
 // off. Nothing here redraws the widgets, so their text and icons stay exactly as the shell draws them.
 //
 // It also lets the board through, a little, wherever the board is grooved (darker than the board just above and below it), which

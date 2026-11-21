@@ -4,7 +4,7 @@
   "name": "Sinners Workspaces",
   "version": "0.1.0",
   "author": "Taylor Remigi",
-  "description": "Omarchy's workspaces widget with the shown workspace on a painted gold plate, for the Sinners bar. Replaces the built-in while enabled; disable it to get stock back. Everything but the plate is stock.",
+  "description": "Omarchy's workspaces widget with the shown workspace as its number, in the theme's red and a heavy serif of its own, inside a painted cream square, for the Sinners bar. Replaces the built-in while enabled; disable it to get stock back. Everything else is stock.",
   "kinds": [
     "bar-widget"
   ],
@@ -12,8 +12,8 @@
     "barWidget": "Workspaces.qml"
   },
   "barWidget": {
-    "displayName": "Workspaces (gold plate)",
-    "description": "Workspace number indicators, the shown one on a gold plate",
+    "displayName": "Workspaces (painted square)",
+    "description": "Workspace number indicators, the shown one in a painted cream square",
     "category": "Compositor",
     "allowMultiple": false
   },

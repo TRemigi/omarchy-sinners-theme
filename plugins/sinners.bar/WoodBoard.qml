@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-// One weathered board behind a section of the bar: worn barn-red paint over grey wood, a ragged sawn end with two nails at
+// One weathered board behind a section of the bar: charred cypress with oxblood paint left on it in worn patches, a ragged sawn end with two nails at
 // each end, and the board's shadow beneath it. All of it is pre-drawn (tools/make-bar-wood.py); this only cuts the picture to
 // the board's length. Set name to left, center or right to pick which board's pictures.
 //

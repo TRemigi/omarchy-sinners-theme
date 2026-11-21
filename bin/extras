@@ -15,9 +15,11 @@
 #   toasts    link the Sinners Notifications plugin (plugins/sinners.notifications), which burns toasts away into
 #             ash, and enable it. It is Omarchy's own notification daemon, copied and patched, and it takes the
 #             built-in's place while enabled.
-#   workspaces  link the Sinners Workspaces plugin (plugins/sinners.workspaces), which puts the shown workspace on a gold
-#             plate, and enable it. It is Omarchy's workspaces widget, copied and patched, and it takes the built-in's
+#   workspaces  link the Sinners Workspaces plugin (plugins/sinners.workspaces), which shows the shown workspace as its number
+#             in a painted cream square, and enable it. It is Omarchy's workspaces widget, copied and patched, and it takes the built-in's
 #             place while enabled. Meant for the bar below, but it works on any bar.
+#   clock     link the Sinners Clock plugin (plugins/sinners.clock), which draws the clock in the sun's gold, and enable it. It is
+#             Omarchy's clock widget, copied and patched, and it takes the built-in's place while enabled.
 #   bar       link the Sinners Bar plugin (plugins/sinners.bar), a bar of weathered wooden boards, and switch the
 #             bar to it with `omarchy bar use`. It is Omarchy's own bar with a board behind each section, and it
 #             replaces the bar you have; uninstall switches back to the one you had.
@@ -36,6 +38,8 @@
 #             Uninstall disables it and removes the link, and Omarchy's own daemon is back.
 #   workspaces  the same, for plugins/sinners.workspaces. It refuses while another plugin that replaces the workspaces is
 #             enabled. Uninstall disables it and removes the link, and Omarchy's own workspaces are back.
+#   clock     the same, for plugins/sinners.clock. It refuses while another plugin that replaces the clock is enabled. Uninstall
+#             disables it and removes the link, and Omarchy's own clock is back.
 #   bar       a symlink in ~/.config/omarchy/plugins and the bar named in shell.json (bar.id), through
 #             `omarchy bar use`. The bar you had is remembered, and uninstall switches back to it (only if the
 #             bar is still this one) before it removes the link. Its widgets and their layout are not touched.
@@ -60,7 +64,7 @@ BAR_STATE=$STATE_DIR/previous-bar
 BAR_ID=sinners.bar
 BAR_DEFAULT=omarchy.bar
 EXTRAS=(command menu font embers)   # what a bare `install` does
-OPT_IN=(toasts workspaces bar)          # only when named
+OPT_IN=(toasts workspaces clock bar)    # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -78,7 +82,8 @@ Extras:
 
 Not part of "every extra"; name it to use it:
   toasts    replace Omarchy's notification daemon with a copy that burns toasts away into ash
-  workspaces  put the shown workspace on a gold plate, with a copy of Omarchy's workspaces widget
+  workspaces  show the shown workspace as its number in a painted cream square, with a copy of Omarchy's workspaces widget
+  clock     draw the clock in the sun's gold, with a copy of Omarchy's clock widget
   bar       replace Omarchy's bar with a bar of weathered wooden boards (a top or bottom bar; a side bar looks stock)
 
 With no extras named, every extra above the blank line is used. Checks for all of them run before anything is changed.
@@ -442,11 +447,11 @@ toasts_status()    { plugin_status toasts sinners.notifications; }
 
 # --- workspaces --------------------------------------------------------------------------------------------
 #
-# Omarchy's workspaces widget with the shown workspace on a gold plate: a clone, so enabling it replaces the built-in and
+# Omarchy's workspaces widget with the shown workspace as its number in a painted cream square: a clone, so enabling it replaces the built-in and
 # disabling it brings the built-in back, the same way the toasts replace the notification daemon.
 
 workspaces_check() {
-  plugin_check sinners.workspaces Workspaces.qml plate.png
+  plugin_check sinners.workspaces Workspaces.qml PaintedSquare.qml square-filled.png square-outline.png
   command -v jq >/dev/null || fail "jq is needed to check for another workspaces plugin"
   local other
   other=$(other_clones omarchy.workspaces sinners.workspaces)
@@ -456,10 +461,31 @@ workspaces_check() {
   return 0
 }
 workspaces_install() {
-  plugin_install workspaces sinners.workspaces "The shown workspace is on a gold plate. If the bar looks unchanged, run: omarchy restart shell"
+  plugin_install workspaces sinners.workspaces "The shown workspace is its number in a painted square. If the bar looks unchanged, run: omarchy restart shell"
 }
 workspaces_uninstall() { plugin_uninstall workspaces sinners.workspaces "Omarchy's own workspaces are back; if they do not return at once, run: omarchy restart shell"; }
 workspaces_status()    { plugin_status workspaces sinners.workspaces; }
+
+# --- clock -------------------------------------------------------------------------------------------------
+#
+# Omarchy's clock widget with its label in the sun's gold: a clone, so enabling it replaces the built-in and disabling it brings
+# the built-in back, as with the workspaces.
+
+clock_check() {
+  plugin_check sinners.clock BarWidget.qml Panel.qml Model.js WallClock.qml
+  command -v jq >/dev/null || fail "jq is needed to check for another clock plugin"
+  local other
+  other=$(other_clones omarchy.clock sinners.clock)
+  if [[ -n $other ]]; then
+    fail "$(echo $other) already replaces Omarchy's clock, and two cannot both do it. Disable it first (omarchy plugin disable $(echo $other | cut -d' ' -f1)), then run this again."
+  fi
+  return 0
+}
+clock_install() {
+  plugin_install clock sinners.clock "The clock is in the sun's gold. If the bar looks unchanged, run: omarchy restart shell"
+}
+clock_uninstall() { plugin_uninstall clock sinners.clock "Omarchy's own clock is back; if it does not return at once, run: omarchy restart shell"; }
+clock_status()    { plugin_status clock sinners.clock; }
 
 # --- bar ---------------------------------------------------------------------------------------------------
 #

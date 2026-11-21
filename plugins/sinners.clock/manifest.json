@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "sinners.clock",
+  "name": "Sinners Clock",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "Omarchy's clock widget with its label in the sun's gold, for the Sinners bar: the one gold thing on it, so the eye goes to the time first. Replaces the built-in while enabled; disable it to get stock back. Everything but the colour is stock.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Clock (gold)",
+    "description": "Date/time label in sun gold, with a calendar popup",
+    "category": "Time",
+    "allowMultiple": false
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.clock"
+  }
+}

@@ -19,7 +19,8 @@ Then the extras, which are separate from the theme and optional:
     bin/extras uninstall        # undo everything; the font goes back to what it was
     bin/extras install toasts   # not part of "everything", because it replaces something: see Toasts that burn away
     bin/extras install bar      # likewise, because it replaces your bar: see A bar of boards
-    bin/extras install workspaces  # likewise, because it replaces the workspaces widget: the gold plate, see A bar of boards
+    bin/extras install workspaces  # likewise, because it replaces the workspaces widget: the painted square, see A bar of boards
+    bin/extras install clock       # likewise, because it replaces the clock widget: the gold clock, see A bar of boards
 
 | Extra | What it does |
 | --- | --- |
@@ -82,10 +83,12 @@ and it never removes a package. Every check for every extra you select runs befo
   (see Toasts that burn away, below). Opt-in.
 - `plugins/sinners.bar/`: Omarchy's bar with a weathered wooden board behind each of its three sections (see A bar of
   boards, below). Opt-in.
-- `plugins/sinners.workspaces/`: Omarchy's workspaces widget, copied and patched to put the shown workspace on a gold
-  plate (see A bar of boards, below). Opt-in.
+- `plugins/sinners.workspaces/`: Omarchy's workspaces widget, copied and patched to show the shown workspace as its number
+  in a painted cream square (see A bar of boards, below). Opt-in.
+- `plugins/sinners.clock/`: Omarchy's clock widget, copied, with its label patched to the sun's gold (see A bar of boards,
+  below). Opt-in.
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, `make-bar-wood.py` (with
-  `woodlib.py`, which also draw the gold plate), `preview-wear.sh`, and for the sun screen
+  `woodlib.py`, which also draw the painted squares), `preview-wear.sh`, and for the sun screen
   `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`. Checks: `check-hyprland.sh` for
   `hyprland.lua`; `check-notifications-upstream.sh`, which tells you whether the notification fork has fallen behind
   Omarchy; and `check-burn-completes.sh`, which renders the burn's last frame for 25 seeds and four card sizes and
@@ -251,9 +254,9 @@ ash and the light always come from where the fire really is.
 
 `plugins/sinners.bar` is Omarchy's own bar with a weathered wooden board behind each of its three sections: the left
 (menu, workspaces, window title), the middle (the clock and what hangs off it) and the right (tray and status). The
-boards are the barn-red paint of the sawmill in the film's design drawings, worn through to grey wood along the grain
-and at the edges, with a ragged sawn end and two nail heads at each end, hung a little way below the top of the screen
-with a shadow under them. Each board is as long as the widgets on it, so one grows when a widget is added. Between the
+boards are charred, weathered cypress, like the buildings in the film, with some of their oxblood paint still on them in worn
+patches along the grain (about 30% of a board; `PAINT_LEFT` in `tools/make-bar-wood.py`), with a ragged sawn end and two nail
+heads at each end, hung a little way below the top of the screen with a shadow under them. Each board is as long as the widgets on it, so one grows when a widget is added. Between the
 boards the wallpaper shows. A left or right bar looks stock, because only a horizontal bar has boards.
 
 It replaces the bar you have, so it is opt-in. To use it, and to go back:
@@ -266,9 +269,16 @@ or by hand, which is all `install` does: `ln -s "$PWD/plugins/sinners.bar" ~/.co
 `omarchy bar use sinners.bar` (to go back: `omarchy bar reset`, or `omarchy bar use <the id you had>`). If the bar looks
 unchanged, `omarchy restart shell`. Your widgets and their layout are not touched.
 
-**The gold plate.** In the stock bar the shown workspace is its layout glyph, with no plate. `plugins/sinners.workspaces`
-is Omarchy's workspaces widget with one change: the shown workspace sits on a small board painted sign-gold
-(`plate.png`, from the same generator), its glyph in dark paint on top. It is a clone, so enabling it replaces the
+**The painted square.** In the stock bar the shown workspace is its layout glyph, with nothing round it. `plugins/sinners.workspaces`
+is Omarchy's workspaces widget with this change: the shown workspace is its number, in the theme's red (the bar's `active` colour,
+`bar.urgent`) and a heavy serif of its own (Noto Serif Black, so it is not the condensed sans of the rest of the lettering),
+inside a painted square in the theme's lightest cream (`bright_foreground`, the title cream, read from `colors.toml` by the generator, so
+it follows the theme; it is cream and not white to sit with the rest of the lettering). The square is one of two drawings from
+`tools/make-bar-wood.py`: a patch of paint with the number on it (the default, and the easier to read: red on cream, not red on the red
+board), or four brush strokes round the number.
+`filled` in `PaintedSquare.qml` chooses; it is not generated, so a `build.sh` run leaves it alone. The widget no longer shows the layout
+glyph; pressing the shown workspace still cycles the layout. The square and the number are drawn by the widget like any other, so
+the chipped paint and grain over the boards (see below) fall on them too. It is a clone, so enabling it replaces the
 built-in and disabling it brings the built-in back, as with the toasts; it refuses while another clone of the
 workspaces is enabled. It is its own extra and works on any bar, but is meant for this one:
 
@@ -279,19 +289,37 @@ by hand: `ln -s "$PWD/plugins/sinners.workspaces" ~/.config/omarchy/plugins/sinn
 `omarchy plugin enable sinners.workspaces` (to go back: `omarchy plugin disable sinners.workspaces`). `build.sh` and
 `--check` work as for the bar.
 
+**The colours.** Each colour on the bar has one job, so the eye goes where it should: the *wood* is charred and dark, with *oxblood*
+paint left on it in patches, and sits quietly under the sun; the *lettering* is the theme's cream (`foreground`); the *lightest
+cream* (`bright_foreground`) is only the shown workspace's square; *red* (`red`) is only that square's number; and *gold* (`yellow`,
+the sun) is only the clock, which is therefore the first thing you read. Nothing else on the bar is gold or red.
+
+**The gold clock.** `plugins/sinners.clock` is Omarchy's clock widget, with the clock's label in the sun's gold (`#F9BD06`, the theme's
+`yellow`; or `[bar] clock` in the theme's `shell.toml`, if a theme has one). It is a clone like the workspaces: all four of the stock
+widget's files are copied, because it loads its calendar popup and its model from beside itself, and only `BarWidget.qml` is patched, by
+one line. Enabling it replaces the built-in and disabling it brings the built-in back; it refuses while another clone of the clock is
+enabled:
+
+    bin/extras install clock           # link it and enable it
+    bin/extras uninstall clock         # Omarchy's own clock is back
+
+by hand: `ln -s "$PWD/plugins/sinners.clock" ~/.config/omarchy/plugins/sinners.clock`, then `omarchy plugin enable sinners.clock`.
+`build.sh` and `--check` work as for the others.
+
 **The lettering.** On a horizontal bar the widgets and their tooltips draw in Noto Sans Condensed Black (install
 `noto-fonts`; without it Qt falls back to its default font and the lettering is merely plainer), a heavy condensed sans like a
 sign painter's, whatever the system font is. The popups the widgets open keep the system font. The bar's font is one line of
 the patch (`fontFamily`), so nothing is cloned. Over each board's widgets, `WornPaint.qml` draws chipped paint: it draws the
 board's own picture again, kept only in small flakes stretched along the grain (`shaders/wear.frag`; the flakes are noise made in
-the shader, no picture). On bare board that is the board over itself, which changes nothing; over a letter it puts the board's red
-back on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked at full strength, and about 6% of the lettering's
+the shader, no picture). On bare board that is the board over itself, which changes nothing; over a letter it puts the board back
+on top of the cream, as a chip where the paint has worn off. About 9% of the board is flaked at full strength, and about 6% of the lettering's
 pixels are chipped away; `strength` in `WornPaint.qml` (0.4) sets how completely a flake shows the board, and 0 is off; it barely changes how many letters are chipped.
 The same overlay gives the lettering the wood's grain, so it looks painted on the board and not laid over it: wherever the board is
 darker than the board a few pixels above and below it (the grain runs along the bar, so that is where grain lines, cracks and pits are),
 the board is let through, a little, and the lettering gets the wood's dark lines across it while the cream between them stays bright.
-`grain` in `WornPaint.qml` (0.95) sets how much; 0 is off. At the shipped settings about 46% of the lettering's pixels are touched by wear or
-grain (most of it grain), and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and `STRENGTH=`). Nothing redraws or hides a widget, so the text and
+`grain` in `WornPaint.qml` (0.95) sets how much; 0 is off. At the shipped settings about 50% of the lettering's pixels are touched by wear or
+grain (most of it grain; it bites harder on the dark boards than it did on the red ones this was tuned on, so lower `grain` if the
+lettering is too eaten), and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and `STRENGTH=`). Nothing redraws or hides a widget, so the text and
 icons are exactly as the shell draws them, clicks and hover never see the overlay (it takes no input), and if its shader cannot run it
 draws nothing. `tools/preview-wear.sh out.png` renders the effect on software GL, the lettering without the flakes above and with
 them below, and prints how much it chipped.
@@ -326,8 +354,10 @@ a second install, status and uninstall, including restoring a previous bar. **It
 compositor: whether the widgets sit squarely on the boards, how the popups and the tray drawer behave, and whether
 Hyprland's blur leaves a halo round the boards' shadows are not known. The wear shader was run on software GL over the real board picture and lettering and looked at (`tools/preview-wear.sh`); how much of the
 board it flakes was measured there. The QML around it (`WornPaint.qml`) has only been parsed, since it needs the real shell. Not
-known: how it looks at your screen's scale. The cream is the stock widgets' own colour from the theme. The gold plate's widget is checked the same way (validated, parsed,
-and its extra run against a stub); where the plate sits on the glyph, and whether the dark glyph colour takes, are not known.
+known: how it looks at your screen's scale. The cream is the stock widgets' own colour from the theme. The painted-square widget is checked the same way (validated, parsed, and its extra run against a stub), and the squares and
+the font were compared on the real board; how it sits in the live bar is not known. The charred boards were assembled from the shipped
+images over the real wallpaper and looked at, not seen in the shell. The gold clock was built, validated and parsed, and its extra run
+against a stub (including the refusal on a second clock clone); that the colour takes in the live clock is not known.
 
 ## Palette provenance
 

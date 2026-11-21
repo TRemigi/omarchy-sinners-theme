@@ -2,7 +2,7 @@ import QtQuick
 
 // Chipped, grainy paint on the lettering of one board of the bar. Put it after the board's widgets, as a sibling: it covers the board
 // and draws the board's own picture over the widgets in small flakes (shaders/wear.frag). On bare board that is the board over
-// itself, which changes nothing; over a letter it puts the board's red back on top of the lettering, as a chip where the paint has
+// itself, which changes nothing; over a letter it puts the board back on top of the lettering, as a chip where the paint has
 // worn off, and, a little, where the wood is grooved, so the lettering shows the grain's dark lines as paint over wood does.
 //
 // Nothing here redraws or hides a widget, so their text and icons are exactly as the shell draws them, and clicks, hover and

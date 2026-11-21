@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate Workspaces.qml: Omarchy's own workspaces widget, plus patches/0001-plate.patch.
+# Regenerate Workspaces.qml: Omarchy's own workspaces widget, plus patches/0001-square.patch.
 #
 #   ./build.sh           copy the installed widget and apply the patch (fails if the patch no longer fits)
 #   ./build.sh --check   say whether the installed widget still matches what UPSTREAM records, and change nothing
@@ -20,13 +20,13 @@ if [[ ${1:-} == --check ]]; then
   if [[ -f UPSTREAM ]] && diff -q <(grep -E '^[0-9a-f]{64}  ' UPSTREAM) <(now_hashes) >/dev/null; then
     echo "Omarchy's workspaces widget is unchanged since this fork was built ($(sed -n 's/^omarchy //p' UPSTREAM))."
   else
-    echo "Omarchy's workspaces widget has changed since this fork was built (now $(version)). Run ./build.sh and look at the plate." >&2
+    echo "Omarchy's workspaces widget has changed since this fork was built (now $(version)). Run ./build.sh and look at the painted square." >&2
     exit 2
   fi
   exit 0
 fi
 
 cp "$SRC/Workspaces.qml" .
-patch -p1 --quiet < patches/0001-plate.patch
+patch -p1 --quiet < patches/0001-square.patch
 { echo "omarchy $(version)"; echo "# sha256 of the stock file Workspaces.qml was built from"; now_hashes; } > UPSTREAM
-echo "Built Workspaces.qml from Omarchy $(version) with patches/0001-plate.patch."
+echo "Built Workspaces.qml from Omarchy $(version) with patches/0001-square.patch."
