@@ -1,9 +1,12 @@
-// Developer tool: runs the ember or smoke fragment shader on Mesa's software GL (headless EGL) and writes the frame as a
-// PAM image (premultiplied RGBA), so the shader can be looked at without a GPU or a compositor. Use
-// tools/preview-embers.sh, which builds and calls this.
+// Developer tool: runs a fragment shader on Mesa's software GL (headless EGL) and writes the frame as a PAM image
+// (premultiplied RGBA), so a shader can be looked at without a GPU or a compositor. tools/preview-embers.sh and
+// tools/preview-burn.sh build and call it.
 //
-//   usage: embers-harness shader.frag W H time seed intensity density out.pam
-//   shader.frag is the GLES variant: qsb -x "glsl,100 es" -o shader.frag embers.frag.qsb
+//   usage: shader-harness shader.frag W H time seed intensity density out.pam
+//   shader.frag is the GLES variant: qsb -x "glsl,100 es" -o shader.frag name.frag.qsb
+//   SOURCE=card.pam binds a picture (straight alpha, premultiplied here as Qt's layer textures are) to the
+//     shader's `source` sampler, as a layer effect gets.
+//   FLOATS="progress=0.4,dur=1.2" and VEC2="size=380:76,origin=40:70" set more uniforms by name (ubuf.NAME).
 //   For smoke.frag: AMOUNT (default 0.32) is how much smoke; the sun's position is worked out from W and H the way
 //   the plugin does (the wallpaper is 3840x2160 with its sun at 1920,940 and radius 600, scaled to cover the screen).
 //   Uniforms a shader does not have are ignored.
@@ -16,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 
 static char *slurp(const char *p) {
   FILE *f = fopen(p, "rb"); if (!f) { perror(p); exit(1); }
@@ -65,6 +69,41 @@ int main(int argc, char **argv) {
   { float sc = (float)W / 3840.f > (float)H / 2160.f ? (float)W / 3840.f : (float)H / 2160.f;   // cover-fit scale
     float sx = ((1920.f - 1920.f) * sc + W / 2.f) / H, sy = 1.f - ((940.f - 1080.f) * sc + H / 2.f) / H, sr = 600.f * sc / H;
     glUniform3f(glGetUniformLocation(prog, "ubuf.sun"), sx, sy, sr); }
+
+  // Extra uniforms by name: FLOATS="a=1,b=2", VEC2="c=1:2".
+  { const char *lists[2] = { getenv("FLOATS"), getenv("VEC2") };
+    for (int k = 0; k < 2; k++) {
+      if (!lists[k]) continue;
+      char *copy = strdup(lists[k]), *save = NULL;
+      for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+        char name[64], full[80]; float a = 0, b = 0;
+        if (k == 0 && sscanf(tok, "%63[^=]=%f", name, &a) == 2) { snprintf(full, sizeof full, "ubuf.%s", name); glUniform1f(glGetUniformLocation(prog, full), a); }
+        if (k == 1 && sscanf(tok, "%63[^=]=%f:%f", name, &a, &b) == 3) { snprintf(full, sizeof full, "ubuf.%s", name); glUniform2f(glGetUniformLocation(prog, full), a, b); }
+      }
+      free(copy);
+    } }
+
+  // A picture for the `source` sampler (texture unit 1, as in Qt's layer effects), from a PAM with straight alpha.
+  if (getenv("SOURCE")) {
+    FILE *f = fopen(getenv("SOURCE"), "rb"); if (!f) { perror("SOURCE"); return 7; }
+    char line[128]; int iw = 0, ih = 0, depth = 4;
+    while (fgets(line, sizeof line, f)) {
+      sscanf(line, "WIDTH %d", &iw); sscanf(line, "HEIGHT %d", &ih); sscanf(line, "DEPTH %d", &depth);
+      if (!strncmp(line, "ENDHDR", 6)) break;
+    }
+    if (iw <= 0 || ih <= 0 || depth != 4) { fprintf(stderr, "SOURCE must be an RGBA PAM\n"); return 7; }
+    unsigned char *img = malloc((size_t)iw * ih * 4);
+    if (fread(img, 1, (size_t)iw * ih * 4, f) != (size_t)iw * ih * 4) { fprintf(stderr, "SOURCE is short\n"); return 7; }
+    fclose(f);
+    for (size_t i = 0; i < (size_t)iw * ih; i++) for (int c = 0; c < 3; c++) img[i * 4 + c] = (unsigned char)(img[i * 4 + c] * img[i * 4 + 3] / 255.f + 0.5f);
+    GLuint st; glActiveTexture(GL_TEXTURE1); glGenTextures(1, &st); glBindTexture(GL_TEXTURE_2D, st);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, iw, ih, 0, GL_RGBA, GL_UNSIGNED_BYTE, img);   // first row = top, v = 0
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glUniform1i(glGetUniformLocation(prog, "source"), 1);
+    glActiveTexture(GL_TEXTURE0);
+    free(img);
+  }
 
   GLuint fbo, tex; glGenTextures(1, &tex); glBindTexture(GL_TEXTURE_2D, tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);

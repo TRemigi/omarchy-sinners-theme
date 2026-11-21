@@ -17,6 +17,7 @@ Then the extras, which are separate from the theme and optional:
     bin/extras install font     # or only the ones you name (command, menu, font, embers)
     bin/extras status           # what is installed
     bin/extras uninstall        # undo everything; the font goes back to what it was
+    bin/extras install toasts   # not part of "everything", because it replaces something: see Toasts that burn away
 
 | Extra | What it does |
 | --- | --- |
@@ -62,10 +63,16 @@ and it never removes a package. Every check for every extra you select runs befo
 - `bin/omarchy-sinners-unlock`: the command that picks among the unlock screens above (see below).
 - `bin/extras`: installs, removes and reports the optional extras: the command, its menu row, the font, and the
   embers (see Install).
-- `plugins/sinners.embers/`: the Embers shell plugin, embers and smoke floating up over the wallpaper (see Embers, below).
+- `plugins/sinners.embers/`: the Embers shell plugin, embers and smoke floating up over the wallpaper (see Embers and
+  smoke, below).
+- `plugins/sinners.notifications/`: Omarchy's notification plugin, copied and patched so that toasts burn away into ash
+  (see Toasts that burn away, below). Opt-in.
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, and for the sun screen
-  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`; `check-hyprland.sh`, which checks
-  `hyprland.lua`; and `preview-embers.sh` and `embers-harness.c`, which render the ember shader (see Embers).
+  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`. Checks: `check-hyprland.sh` for
+  `hyprland.lua`; `check-notifications-upstream.sh`, which tells you whether the notification fork has fallen behind
+  Omarchy; and `check-burn-completes.sh`, which renders the burn's last frame for 25 seeds and four card sizes and
+  requires that nothing is left. For looking at the shaders without a compositor: `preview-embers.sh`, `preview-burn.sh` and
+  `shader-harness.c`, which they build (see Embers and smoke, and Toasts that burn away).
 - `research/`: how the theme was made. Omarchy does not read it. `palette.toml` is the first palette notes, superseded
   by `colors.toml`; `images/` has the swatch sheet and comparison mock-ups; `wallpapers/` has earlier wallpapers.
   A `poster-comparisons/` folder holds images that crop the poster. It stays on the machine it was made on and is
@@ -167,6 +174,58 @@ Edit `shaders/embers.frag` or `shaders/smoke.frag`, then run `plugins/sinners.em
 (`LAYERS=smoke` or `LAYERS=embers` draws one; `AMOUNT` sets the smoke; `TIMES="12 40 71"` makes a contact sheet; it needs `gcc`, `libEGL` and `libGLESv2`). That tests the shader, not the
 QML: the plugin has been validated (`omarchy plugin validate`, `qmllint`) but the layer itself has to be seen in a
 running shell.
+
+## Toasts that burn away
+
+Every way a notification toast leaves the screen is a burn instead of a fade: it expires, you click it, you press
+its action button or its ×, you dismiss it from the keyboard, or you dismiss them all. The fire is lit at one point,
+the middle of the card's bottom edge, and climbs and spreads from there as a ragged, wandering contour: a wide, rounded dome
+that takes a moment to reach the top, then out and around, so the corners go last. It is not a wipe, and it differs from card to card. Just ahead of the fire the card
+browns and warms. On the line itself the glow is white-gold in a thin core, orange and red beyond it, flaring and
+dulling as it goes. Behind it the card is charcoal, not black: grey-brown, flaky, partly ash, with a network of
+cracks that glow red for a moment and go dark. The char crumbles away raggedly. Around the card the fire lights what
+is near it, short flames lick up from the line, a faint smoke rises, and ash lifts off in flakes of every size and
+brightness, tumbling and glowing at first, with the heavier cinders falling; a few quick sparks go out fast. Nothing
+is a particle: all of it is worked out from the clock, so it costs only a shader.
+
+The fire takes 2.6 s to cross a card, and the smoke and ash settle for 1 s more. While a card burns it is a normal
+card in the stack, which holds its place until it is gone, and it takes no clicks. The one exception is a card
+nobody can see (one hidden behind the front card of a collapsed deck), which just goes. A notification from the app
+that replaces a burning card gives it a fresh life, as it does one that is fading.
+
+**This is a fork of Omarchy's notification daemon, and it is opt-in.** Toasts are drawn, and removed, by the
+daemon's own card and scene code, and it has no hook for another way out, so the only way is to change that code.
+`plugins/sinners.notifications` is Omarchy's notifications plugin as of the version named in its `UPSTREAM` file,
+with a patch every part of which is marked "Sinners" in `Service.qml` and `Toast.qml` (and new files `Burn.qml` and
+`shaders/`). While it is enabled it takes the place of the built-in daemon, as `omarchy plugin clone` does. It acts
+only while Sinners is the active theme, and on any other theme it is Omarchy's own daemon. Because it replaces
+something, a bare `bin/extras install` leaves it out; name it:
+
+    bin/extras install toasts     # link it and enable it; if toasts look unchanged, omarchy restart shell
+    bin/extras uninstall toasts   # disable it and remove the link: Omarchy's own daemon is back
+
+Two things to weigh before you do:
+
+- **A fork stops getting Omarchy's fixes to the daemon.** The daemon handles text that other programs send, and
+  Omarchy changes it from time to time. Nothing carries those changes into this copy. After an Omarchy update, run
+  `tools/check-notifications-upstream.sh`: it says whether the stock plugin has changed since the copy (and whether
+  the fork has strayed from stock anywhere but its three files), and `--diff` shows the patch. When it has, copy the
+  new stock files over and carry the patch across; it is small. The annihilation theme's notification fork is in the
+  same position, and was made against an older Omarchy than the current one.
+- **Only one plugin can be the daemon.** `bin/extras install toasts` refuses while another that replaces it (such as
+  `annihilation.notifications`) is enabled. To go to that theme, `bin/extras uninstall toasts` first.
+
+Settings are inline fields on the plugin's entry in `~/.config/omarchy/shell.json` `plugins[]`: `burn` (false is the
+stock fade) and `burnSeconds` (0.8-6, 2.6). If notifications ever misbehave, `omarchy plugin disable
+sinners.notifications` puts the stock daemon back at once.
+
+How much of this has been checked: the two shaders (`shaders/burn.frag`, `ash.frag`) were rendered over a card on
+Mesa's software GL and looked at (`tools/preview-burn.sh out.png` makes the contact sheet; `CARD=` and `BGIMG=` use
+your own card and background, and `VIS_TOP=` and friends cut away what is off the screen). The QML that wires
+them into the daemon has been parsed (`qmllint`) and the plugin validated, but it has not been run: it needs the
+real shell. Edit a shader, then run `plugins/sinners.notifications/build-shaders.sh`; the compiled `.qsb` files are
+committed. The fire's arrival field is written once, in `burn.frag`, and the build copies it into `ash.frag`, so the
+ash and the light always come from where the fire really is.
 
 ## Palette provenance
 

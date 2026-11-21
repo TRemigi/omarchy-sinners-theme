@@ -25,7 +25,7 @@ for layer in $LAYERS; do
   [[ $layer == smoke || $layer == embers ]] || { echo "LAYERS may name smoke and embers, not '$layer'" >&2; exit 1; }
   /usr/lib/qt6/bin/qsb -x "glsl,100 es" -o "$T/$layer.frag" "$PLUGIN/shaders/$layer.frag.qsb"
 done
-gcc -O2 "$ROOT/tools/embers-harness.c" -o "$T/harness" -lEGL -lGLESv2
+gcc -O2 "$ROOT/tools/shader-harness.c" -o "$T/harness" -lEGL -lGLESv2
 
 # The wallpaper as the desktop shows it: scaled to cover the screen, centered.
 if [[ -z ${NOWALL:-} ]]; then

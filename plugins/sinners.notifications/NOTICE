@@ -1,0 +1,12 @@
+This plugin is derived from the notifications plugin of Omarchy
+(https://github.com/basecamp/omarchy, MIT licence, Copyright (c) David Heinemeier Hansson).
+
+Everything here except Burn.qml, shaders/ and build-shaders.sh is Omarchy's own file, copied as it was in the
+Omarchy version named in UPSTREAM, which also records the hash of each file as copied. The fork changes three of
+them: manifest.json, Service.qml and Toast.qml. Every change to the last two is marked "Sinners" in a comment, and
+tools/check-notifications-upstream.sh --diff in the theme repository shows them against the installed stock files.
+The engine in Service.qml began as Omapager, Copyright (c) 2026 Neil Jagdish Patel, under the MIT License
+(https://github.com/omacom/omapager), as the header of that file says.
+
+Changes made by this fork are released under the same MIT licence (see LICENSE). The licence text is Omarchy's,
+unaltered.

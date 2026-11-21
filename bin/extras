@@ -11,6 +11,11 @@
 #   font      switch the system monospace font to iA Writer Mono S, remembering the font it replaces
 #   embers    link the Embers shell plugin (plugins/sinners.embers) into ~/.config/omarchy/plugins and enable it
 #
+# One more extra is not in "every extra", and has to be named: it replaces something rather than adding to it.
+#   toasts    link the Sinners Notifications plugin (plugins/sinners.notifications), which burns toasts away into
+#             ash, and enable it. It is Omarchy's own notification daemon, copied and patched, and it takes the
+#             built-in's place while enabled.
+#
 # What each one changes, and what uninstall undoes:
 #   command   the symlink in ~/.local/bin
 #   menu      one marked block in ~/.config/omarchy/extensions/omarchy-menu.jsonc, backed up before every change
@@ -20,11 +25,14 @@
 #   embers    a symlink in ~/.config/omarchy/plugins, and the plugin's entry in shell.json, through
 #             `omarchy plugin enable`. If the shell is not running, the link is made and the enable is left for
 #             you to run. Uninstall disables the plugin and removes the link; its settings stay in shell.json.
+#   toasts    the same, for plugins/sinners.notifications. It refuses while another plugin that replaces the
+#             notification daemon (such as annihilation.notifications) is enabled: two cannot both be the daemon.
+#             Uninstall disables it and removes the link, and Omarchy's own daemon is back.
 #
 # Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
 #
-# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU, SINNERS_STATE_DIR and SINNERS_PLUGINS_DIR override the four
-# locations.
+# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU, SINNERS_STATE_DIR, SINNERS_PLUGINS_DIR and SINNERS_SHELL_JSON
+# override the five locations.
 set -euo pipefail
 
 THEME_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
@@ -33,13 +41,12 @@ LOCAL_BIN=${SINNERS_LOCAL_BIN:-$HOME/.local/bin}
 USER_MENU=${SINNERS_USER_MENU:-$HOME/.config/omarchy/extensions/omarchy-menu.jsonc}
 STATE_DIR=${SINNERS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-sinners-theme}
 PLUGINS_DIR=${SINNERS_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}
-PLUGIN_ID=sinners.embers
-PLUGIN_SRC=$THEME_DIR/plugins/$PLUGIN_ID
-PLUGIN_DST=$PLUGINS_DIR/$PLUGIN_ID
+SHELL_JSON=${SINNERS_SHELL_JSON:-$HOME/.config/omarchy/shell.json}
 FONT_NAME="iA Writer Mono S"
 FONT_PACKAGE=ttf-ia-writer
 FONT_STATE=$STATE_DIR/previous-font
-EXTRAS=(command menu font embers)
+EXTRAS=(command menu font embers)   # what a bare `install` does
+OPT_IN=(toasts)                       # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -55,7 +62,10 @@ Extras:
   font      switch the system monospace font to iA Writer Mono S (uninstall restores the previous font)
   embers    add the Embers shell plugin: sparks that climb past the sun on the wallpaper
 
-With no extras named, every extra is used. Checks for all of them run before anything is changed.
+Not part of "every extra"; name it to use it:
+  toasts    replace Omarchy's notification daemon with a copy that burns toasts away into ash
+
+With no extras named, every extra above the blank line is used. Checks for all of them run before anything is changed.
 USAGE
 }
 
@@ -78,9 +88,9 @@ select_extras() {
     return
   fi
   for name in "$@"; do
-    in_list "$name" "${EXTRAS[@]}" || fail "unknown extra '$name' (have: ${EXTRAS[*]})"
+    in_list "$name" "${EXTRAS[@]}" "${OPT_IN[@]}" || fail "unknown extra '$name' (have: ${EXTRAS[*]} ${OPT_IN[*]})"
   done
-  for extra in "${EXTRAS[@]}"; do
+  for extra in "${EXTRAS[@]}" "${OPT_IN[@]}"; do
     in_list "$extra" "$@" && SELECTED+=("$extra")
   done
   return 0
@@ -292,63 +302,124 @@ font_status() {
   fi
 }
 
-# --- embers ----------------------------------------------------------------------------------------------
+# --- plugins: embers, toasts -----------------------------------------------------------------------------
+#
+# Both are shell plugins in this repo, linked into ~/.config/omarchy/plugins rather than copied, and enabled
+# through Omarchy's own `omarchy plugin enable`.
 
-embers_is_ours() { [[ -L $PLUGIN_DST && $(readlink -f "$PLUGIN_DST") == "$PLUGIN_SRC" ]]; }
 shell_running() { [[ $(timeout 2 omarchy-shell shell ping 2>/dev/null) == ok ]]; }
 
-embers_check() {
-  [[ -f $PLUGIN_SRC/manifest.json && -f $PLUGIN_SRC/shaders/embers.frag.qsb ]] ||
-    fail "$PLUGIN_SRC is incomplete (needs manifest.json and shaders/embers.frag.qsb; plugins/$PLUGIN_ID/build-shaders.sh makes the second)"
-  if [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]] && ! embers_is_ours; then
-    fail "$PLUGIN_DST exists and is not this theme's link; not touching it"
+# plugin_src <id>, plugin_dst <id>
+plugin_src() { echo "$THEME_DIR/plugins/$1"; }
+plugin_dst() { echo "$PLUGINS_DIR/$1"; }
+plugin_is_ours() { [[ -L $(plugin_dst "$1") && $(readlink -f "$(plugin_dst "$1")") == "$(plugin_src "$1")" ]]; }
+
+# plugin_check <id> <file the plugin cannot work without>...
+plugin_check() {
+  local id=$1 src dst needed
+  shift
+  src=$(plugin_src "$id"); dst=$(plugin_dst "$id")
+  for needed in manifest.json "$@"; do
+    [[ -f $src/$needed ]] || fail "$src is incomplete (missing $needed; plugins/$id/build-shaders.sh makes the .qsb files)"
+  done
+  if [[ -e $dst || -L $dst ]] && ! plugin_is_ours "$id"; then
+    fail "$dst exists and is not this theme's link; not touching it"
   fi
   return 0
 }
 
-embers_install() {
+# plugin_install <name> <id> <what it does when enabled>
+plugin_install() {
+  local name=$1 id=$2 note=$3
   mkdir -p "$PLUGINS_DIR"
-  ln -sfn "$PLUGIN_SRC" "$PLUGIN_DST"
-  echo "embers: $PLUGIN_DST -> $PLUGIN_SRC"
+  ln -sfn "$(plugin_src "$id")" "$(plugin_dst "$id")"
+  echo "$name: $(plugin_dst "$id") -> $(plugin_src "$id")"
   if shell_running; then
     omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-    if omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1; then
-      echo "embers: enabled. They show while Sinners is the active theme."
+    if omarchy plugin enable "$id" >/dev/null 2>&1; then
+      echo "$name: enabled. $note"
     else
-      echo "embers: linked, but could not enable it; run: omarchy plugin enable $PLUGIN_ID" >&2
+      echo "$name: linked, but could not enable it; run: omarchy plugin enable $id" >&2
     fi
   else
-    echo "embers: the shell is not running; after login run: omarchy plugin enable $PLUGIN_ID"
+    echo "$name: the shell is not running; after login run: omarchy plugin enable $id"
   fi
 }
 
-embers_uninstall() {
-  if embers_is_ours; then
-    if shell_running; then omarchy plugin disable "$PLUGIN_ID" >/dev/null 2>&1 || true; fi
-    rm "$PLUGIN_DST"
+# plugin_uninstall <name> <id> <what goes back>
+plugin_uninstall() {
+  local name=$1 id=$2 back=$3 dst
+  dst=$(plugin_dst "$id")
+  if plugin_is_ours "$id"; then
+    if shell_running; then omarchy plugin disable "$id" >/dev/null 2>&1 || true; fi
+    rm "$dst"
     if shell_running; then omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; fi
-    echo "embers: disabled and removed $PLUGIN_DST (its settings stay in shell.json)"
-  elif [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]]; then
-    echo "embers: $PLUGIN_DST is not this theme's link; left alone"
+    echo "$name: disabled and removed $dst (its settings stay in shell.json)${back:+. $back}"
+  elif [[ -e $dst || -L $dst ]]; then
+    echo "$name: $dst is not this theme's link; left alone"
   else
-    echo "embers: not installed"
+    echo "$name: not installed"
   fi
 }
 
-embers_status() {
-  if embers_is_ours; then
-    echo "embers: linked ($PLUGIN_DST)"
+# plugin_status <name> <id>
+plugin_status() {
+  local name=$1 id=$2 dst
+  dst=$(plugin_dst "$id")
+  if plugin_is_ours "$id"; then
+    echo "$name: linked ($dst)"
     if shell_running; then
-      echo "        $(omarchy plugin list 2>/dev/null | grep -F "$PLUGIN_ID" | head -1 | sed 's/^ *//' || true)"
+      echo "        $(omarchy plugin list 2>/dev/null | grep -F "$id" | head -1 | sed 's/^ *//' || true)"
     else
       echo "        the shell is not running, so whether it is enabled cannot be checked"
     fi
-  elif [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]]; then
-    echo "embers: $PLUGIN_DST exists but is not this theme's link"
+  elif [[ -e $dst || -L $dst ]]; then
+    echo "$name: $dst exists but is not this theme's link"
   else
-    echo "embers: not installed"
+    echo "$name: not installed"
   fi
 }
+
+embers_check()     { plugin_check sinners.embers shaders/embers.frag.qsb shaders/smoke.frag.qsb; }
+embers_install()   { plugin_install embers sinners.embers "They show while Sinners is the active theme."; }
+embers_uninstall() { plugin_uninstall embers sinners.embers ""; }
+embers_status()    { plugin_status embers sinners.embers; }
+
+# The other plugins in the plugins directory that replace the notification daemon and are enabled in shell.json
+# (one id per line). Two cannot both be the daemon, and which Omarchy would pick is not defined.
+other_notification_clones() {
+  local manifest id
+  [[ -d $PLUGINS_DIR && -f $SHELL_JSON ]] || return 0
+  for manifest in "$PLUGINS_DIR"/*/manifest.json; do
+    [[ -f $manifest ]] || continue
+    id=$(jq -r 'select(.omarchy.clonedFrom == "omarchy.notifications") | .id // empty' "$manifest" 2>/dev/null) || continue
+    [[ -n $id && $id != sinners.notifications ]] || continue
+    # enabled = listed in plugins[] (a plain id or an object with an id) and not in disabledPlugins
+    if jq -e --arg id "$id" '((.plugins // []) | map(if type == "object" then .id else . end) | index($id)) != null
+                              and (((.disabledPlugins // []) | index($id)) == null)' "$SHELL_JSON" >/dev/null 2>&1; then
+      echo "$id"
+    fi
+  done
+}
+
+toasts_check() {
+  plugin_check sinners.notifications shaders/burn.frag.qsb shaders/ash.frag.qsb Service.qml Toast.qml Burn.qml
+  command -v jq >/dev/null || fail "jq is needed to check for another notification daemon plugin"
+  local other
+  other=$(other_notification_clones)
+  if [[ -n $other ]]; then
+    fail "$(echo $other) already replaces Omarchy's notification daemon, and two cannot both be it. Disable it first (omarchy plugin disable $(echo $other | cut -d' ' -f1)), then run this again."
+  fi
+  # A copy of Omarchy's daemon that has fallen behind Omarchy is worth a word; it is not a reason to refuse.
+  "$THEME_DIR/tools/check-notifications-upstream.sh" >/dev/null 2>&1 ||
+    echo "toasts: note: the copy of Omarchy's notification plugin no longer matches the installed one; run tools/check-notifications-upstream.sh" >&2
+  return 0
+}
+toasts_install() {
+  plugin_install toasts sinners.notifications "It is now the notification daemon; toasts burn away while Sinners is the active theme. If notifications look unchanged, run: omarchy restart shell"
+}
+toasts_uninstall() { plugin_uninstall toasts sinners.notifications "Omarchy's own notification daemon is back; if it does not return at once, run: omarchy restart shell"; }
+toasts_status()    { plugin_status toasts sinners.notifications; }
 
 # --- dispatch --------------------------------------------------------------------------------------------
 
