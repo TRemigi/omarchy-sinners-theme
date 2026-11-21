@@ -9,6 +9,7 @@
 #   command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
 #   menu      add Appearance > Sinners Unlock to the Omarchy menu (shown only while Sinners is the active theme)
 #   font      switch the system monospace font to iA Writer Mono S, remembering the font it replaces
+#   embers    link the Embers shell plugin (plugins/sinners.embers) into ~/.config/omarchy/plugins and enable it
 #
 # What each one changes, and what uninstall undoes:
 #   command   the symlink in ~/.local/bin
@@ -16,10 +17,14 @@
 #   font      the system font, through `omarchy font set`; uninstall puts the previous font back, but only if
 #             the font is still iA Writer Mono S. If the font is missing, install adds its package
 #             (ttf-ia-writer) with `omarchy pkg add`, which asks for sudo. Uninstall never removes a package.
+#   embers    a symlink in ~/.config/omarchy/plugins, and the plugin's entry in shell.json, through
+#             `omarchy plugin enable`. If the shell is not running, the link is made and the enable is left for
+#             you to run. Uninstall disables the plugin and removes the link; its settings stay in shell.json.
 #
 # Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
 #
-# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU and SINNERS_STATE_DIR override the three locations.
+# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU, SINNERS_STATE_DIR and SINNERS_PLUGINS_DIR override the four
+# locations.
 set -euo pipefail
 
 THEME_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
@@ -27,10 +32,14 @@ COMMAND=omarchy-sinners-unlock
 LOCAL_BIN=${SINNERS_LOCAL_BIN:-$HOME/.local/bin}
 USER_MENU=${SINNERS_USER_MENU:-$HOME/.config/omarchy/extensions/omarchy-menu.jsonc}
 STATE_DIR=${SINNERS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-sinners-theme}
+PLUGINS_DIR=${SINNERS_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}
+PLUGIN_ID=sinners.embers
+PLUGIN_SRC=$THEME_DIR/plugins/$PLUGIN_ID
+PLUGIN_DST=$PLUGINS_DIR/$PLUGIN_ID
 FONT_NAME="iA Writer Mono S"
 FONT_PACKAGE=ttf-ia-writer
 FONT_STATE=$STATE_DIR/previous-font
-EXTRAS=(command menu font)
+EXTRAS=(command menu font embers)
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -44,6 +53,7 @@ Extras:
   command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
   menu      add Appearance > Sinners Unlock to the Omarchy menu
   font      switch the system monospace font to iA Writer Mono S (uninstall restores the previous font)
+  embers    add the Embers shell plugin: sparks that climb past the sun on the wallpaper
 
 With no extras named, every extra is used. Checks for all of them run before anything is changed.
 USAGE
@@ -279,6 +289,64 @@ font_status() {
     echo "font: not active (current: $current; $FONT_NAME is installed)"
   else
     echo "font: not active (current: $current; $FONT_NAME is not installed, install would add $FONT_PACKAGE)"
+  fi
+}
+
+# --- embers ----------------------------------------------------------------------------------------------
+
+embers_is_ours() { [[ -L $PLUGIN_DST && $(readlink -f "$PLUGIN_DST") == "$PLUGIN_SRC" ]]; }
+shell_running() { [[ $(timeout 2 omarchy-shell shell ping 2>/dev/null) == ok ]]; }
+
+embers_check() {
+  [[ -f $PLUGIN_SRC/manifest.json && -f $PLUGIN_SRC/shaders/embers.frag.qsb ]] ||
+    fail "$PLUGIN_SRC is incomplete (needs manifest.json and shaders/embers.frag.qsb; plugins/$PLUGIN_ID/build-shaders.sh makes the second)"
+  if [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]] && ! embers_is_ours; then
+    fail "$PLUGIN_DST exists and is not this theme's link; not touching it"
+  fi
+  return 0
+}
+
+embers_install() {
+  mkdir -p "$PLUGINS_DIR"
+  ln -sfn "$PLUGIN_SRC" "$PLUGIN_DST"
+  echo "embers: $PLUGIN_DST -> $PLUGIN_SRC"
+  if shell_running; then
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+    if omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1; then
+      echo "embers: enabled. They show while Sinners is the active theme."
+    else
+      echo "embers: linked, but could not enable it; run: omarchy plugin enable $PLUGIN_ID" >&2
+    fi
+  else
+    echo "embers: the shell is not running; after login run: omarchy plugin enable $PLUGIN_ID"
+  fi
+}
+
+embers_uninstall() {
+  if embers_is_ours; then
+    if shell_running; then omarchy plugin disable "$PLUGIN_ID" >/dev/null 2>&1 || true; fi
+    rm "$PLUGIN_DST"
+    if shell_running; then omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; fi
+    echo "embers: disabled and removed $PLUGIN_DST (its settings stay in shell.json)"
+  elif [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]]; then
+    echo "embers: $PLUGIN_DST is not this theme's link; left alone"
+  else
+    echo "embers: not installed"
+  fi
+}
+
+embers_status() {
+  if embers_is_ours; then
+    echo "embers: linked ($PLUGIN_DST)"
+    if shell_running; then
+      echo "        $(omarchy plugin list 2>/dev/null | grep -F "$PLUGIN_ID" | head -1 | sed 's/^ *//' || true)"
+    else
+      echo "        the shell is not running, so whether it is enabled cannot be checked"
+    fi
+  elif [[ -e $PLUGIN_DST || -L $PLUGIN_DST ]]; then
+    echo "embers: $PLUGIN_DST exists but is not this theme's link"
+  else
+    echo "embers: not installed"
   fi
 }
 

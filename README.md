@@ -13,8 +13,8 @@ Copy or link this directory into Omarchy's theme folder, then apply it:
 
 Then the extras, which are separate from the theme and optional:
 
-    bin/extras install          # everything: the unlock picker command, its menu row, and the font
-    bin/extras install font     # or only the ones you name (command, menu, font)
+    bin/extras install          # everything: the unlock picker command, its menu row, the font, and the embers
+    bin/extras install font     # or only the ones you name (command, menu, font, embers)
     bin/extras status           # what is installed
     bin/extras uninstall        # undo everything; the font goes back to what it was
 
@@ -60,10 +60,12 @@ and it never removes a package. Every check for every extra you select runs befo
 - `unlock-sinners-sun.png`, `preview-unlock-sinners-sun.png`: an alternate unlock screen with the wallpaper's sun
   behind a Sinners-style title. Built for one screen size (1920x1200 here): see "The sun unlock screen" below.
 - `bin/omarchy-sinners-unlock`: the command that picks among the unlock screens above (see below).
-- `bin/extras`: installs, removes and reports the optional extras: the command, its menu row, and the font (see Install).
+- `bin/extras`: installs, removes and reports the optional extras: the command, its menu row, the font, and the
+  embers (see Install).
+- `plugins/sinners.embers/`: the Embers shell plugin, embers floating up over the wallpaper (see Embers, below).
 - `tools/`: the generators: `make-wallpaper.sh`, `make-unlock.sh`, `embers.py`, `eyes.py`, and for the sun screen
-  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`; and `check-hyprland.sh`, which checks
-  `hyprland.lua`.
+  `make-unlock-sun.sh`, `sun-unlock.py`, `lettering.py` and `verify-sun.py`; `check-hyprland.sh`, which checks
+  `hyprland.lua`; and `preview-embers.sh` and `embers-harness.c`, which render the ember shader (see Embers).
 - `research/`: how the theme was made. Omarchy does not read it. `palette.toml` is the first palette notes, superseded
   by `colors.toml`; `images/` has the swatch sheet and comparison mock-ups; `wallpapers/` has earlier wallpapers.
   A `poster-comparisons/` folder holds images that crop the poster. It stays on the machine it was made on and is
@@ -117,6 +119,41 @@ at y=1120. The sun's grain is seeded, so the logo's sun has exactly the wallpape
 halo fades out in an oval before the logo ends, so it is shorter than the wallpaper's, and the logo's halo and the dark
 tail of its limb ring add to the wallpaper's where the two overlap; the sky glow and the wallpaper's overall film
 grain are not in the logo.
+
+## Embers
+
+`plugins/sinners.embers` is an Omarchy shell plugin that floats embers up over the wallpaper. It puts a click-through
+window on the layer between the wallpaper and your windows, on every screen, and paints one fragment shader on it.
+It is hidden under a fullscreen window and does nothing at all on any theme but Sinners, so it is safe to leave
+enabled. Install it with `bin/extras install embers`, which links it into `~/.config/omarchy/plugins` and runs
+`omarchy plugin enable sinners.embers`. A plugin runs as code inside the shell, so read it first; it is two small
+QML files and one shader. `bin/extras uninstall embers` disables it and removes the link.
+
+What the shader does, and why it should look real rather than like confetti:
+
+- **Heat.** Each ember is lofted from just below the screen white-gold, and cools through orange and red to
+  nothing while it shrinks and flickers. Many burn out before they reach the top, so they thin out as they rise.
+- **One wind.** Every ember is carried by the same slowly changing lean and gusts, so neighbours move together, and
+  each adds its own small flutter on top.
+- **Three depths.** Many small sharp sparks far away, the main population, and a few large defocused ones close to
+  the camera that move faster.
+- **Light, not paint.** The cores are overexposed so a hot one blooms toward white, and its halo is cooler than its
+  core. The output is an ordinary translucent layer (alpha covers the colour), with no blend tricks.
+
+There are no particles to update: where each ember is, and how hot, is a function of the clock, so a frame costs
+only the fifteen embers near each pixel. Settings are inline fields on the plugin's entry in
+`~/.config/omarchy/shell.json` `plugins[]`, and apply when the file is saved: `embers` (false switches them off),
+`intensity` (0-1, 0.8), `density` (0.1-1.5, 1), `speed` (0.25-3, 1), `fpsCap` (5-60, 30) and `renderScale` (0.5-1, 1;
+lower is cheaper and softer). A new shader or QML file needs `omarchy restart shell`. The clock wraps every six
+hours, because a 32-bit float clock is too coarse past that to place an ember to the pixel; at the wrap every ember
+is re-lofted at once.
+
+Edit `shaders/embers.frag`, then run `plugins/sinners.embers/build-shaders.sh` (needs `qt6-shadertools`); the compiled
+`.qsb` is committed, so installing needs no compiler. To look at the shader without a compositor,
+`tools/preview-embers.sh out.png [time]` renders it on Mesa's software GL and composites it over the wallpaper
+(`TIMES="12 40 71"` makes a contact sheet; it needs `gcc`, `libEGL` and `libGLESv2`). That tests the shader, not the
+QML: the plugin has been validated (`omarchy plugin validate`, `qmllint`) but the layer itself has to be seen in a
+running shell.
 
 ## Palette provenance
 
