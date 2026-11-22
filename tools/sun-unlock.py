@@ -30,6 +30,8 @@ ap.add_argument('--layer', help='4K sun layer from make-wallpaper.sh --sun-layer
 ap.add_argument('--word', help='the title PNG; omitted = the sun alone')
 ap.add_argument('--word-dy', type=float, help='title centre, px below the sun centre; default 0: centred on the sun. (On the poster the title sits 0.13 radii low, because it is part of a text block that is itself centred.)')
 ap.add_argument('--embers', type=int, default=40, help='sparks in the glow around the sun')
+ap.add_argument('--pixel', type=int, default=0, help='draw the disc as square blocks this many px a side, like ASCII art (match the '
+                                                     "wordmark's pixels); 0, the default, keeps the wallpaper's smooth disc")
 ap.add_argument('--fade', default='ellipse', choices=['rect', 'radial', 'ellipse'], help='how the halo fades out before the canvas ends')
 ap.add_argument('--ellipse-x', type=float, default=640, help='ellipse fade: horizontal reach from the sun centre, px')
 ap.add_argument('--out', required=True)
@@ -83,6 +85,58 @@ m('-size', f'{CW}x{CH}', 'xc:black', '-fx', expr, w('fade.png'))
 m(w('canvas.png'), '-alpha', 'extract', w('alpha.png'))
 m(w('alpha.png'), w('fade.png'), '-compose', 'Multiply', '-composite', w('alpha2.png'))
 m(w('canvas.png'), w('alpha2.png'), '-alpha', 'off', '-compose', 'CopyOpacity', '-composite', w('logo0.png'))
+
+# 3b. pixel sun: the disc as square blocks on a grid centred on the sun, each the average colour of the smooth sun under it. A
+# block whose centre is inside the circle is disc; the blocks round it that the circle cuts take the average of what is outside
+# the circle in them (the rim and the glow), so the edge steps like an ASCII circle. Everything further out is left smooth.
+def pixelate(path, cell):
+    span = int(sun_r + 2 * cell) + 1
+    bx0, by0 = max(0, int(sun_x) - span), max(0, int(sun_y) - span)
+    bx1, by1 = min(CW, int(sun_x) + span), min(CH, int(sun_y) + span)
+    bw, bh = bx1 - bx0, by1 - by0
+    raw = bytearray(subprocess.run(['magick', path, '-crop', f'{bw}x{bh}+{bx0}+{by0}', '+repage', '-depth', '8', 'rgba:-'],
+                                   capture_output=True, check=True).stdout)
+    ox, oy = sun_x - cell / 2, sun_y - cell / 2                # a block is centred on the sun's centre
+    r2 = sun_r * sun_r
+    cells = {}                                                 # (i, j) -> [in r,g,b,a,n, out r*a,g*a,b*a,a,n]
+    for py in range(bh):
+        y = by0 + py + 0.5
+        j = math.floor((y - oy) / cell)
+        dy2 = (y - sun_y) ** 2
+        row = py * bw * 4
+        for px in range(bw):
+            x = bx0 + px + 0.5
+            k = row + px * 4
+            acc = cells.setdefault((math.floor((x - ox) / cell), j), [0] * 10)
+            r, g, b, al = raw[k], raw[k + 1], raw[k + 2], raw[k + 3]
+            if (x - sun_x) ** 2 + dy2 <= r2:
+                acc[0] += r; acc[1] += g; acc[2] += b; acc[3] += al; acc[4] += 1
+            else:
+                acc[5] += r * al; acc[6] += g * al; acc[7] += b * al; acc[8] += al; acc[9] += 1
+    colour = {}
+    for (i, j), acc in cells.items():
+        if not acc[4]:
+            continue                                           # the circle does not reach this block: leave it smooth
+        cx, cy = ox + (i + 0.5) * cell, oy + (j + 0.5) * cell
+        if (cx - sun_x) ** 2 + (cy - sun_y) ** 2 <= r2 or not acc[8]:
+            n = acc[4]
+            colour[i, j] = (round(acc[0] / n), round(acc[1] / n), round(acc[2] / n), round(acc[3] / n))
+        else:
+            a_ = acc[8]
+            colour[i, j] = (round(acc[5] / a_), round(acc[6] / a_), round(acc[7] / a_), round(a_ / acc[9]))
+    for py in range(bh):
+        j = math.floor((by0 + py + 0.5 - oy) / cell)
+        row = py * bw * 4
+        for px in range(bw):
+            c = colour.get((math.floor((bx0 + px + 0.5 - ox) / cell), j))
+            if c:
+                raw[row + px * 4:row + px * 4 + 4] = bytes(c)
+    open(w('pix.rgba'), 'wb').write(raw)
+    m(path, '(', '-size', f'{bw}x{bh}', '-depth', '8', f'rgba:{w("pix.rgba")}', ')', '-geometry', f'+{bx0}+{by0}',
+      '-compose', 'Copy', '-composite', path)
+
+if a.pixel:
+    pixelate(w('logo0.png'), a.pixel)
 
 cmd = [w('logo0.png')]
 word_box = None

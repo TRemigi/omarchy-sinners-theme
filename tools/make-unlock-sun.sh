@@ -1,6 +1,7 @@
 #!/bin/bash
-# Builds the unlock screen with the wallpaper's sun behind the title: Omarchy's ASCII wordmark (/usr/share/omarchy/logo.txt)
-# given the poster title's treatment (neon lemon, amber stains, chipped edges; see lettering.py):
+# Builds the unlock screen with the wallpaper's sun, drawn in square blocks like ASCII art, behind the title: Omarchy's ASCII
+# wordmark (/usr/share/omarchy/logo.txt) given the poster title's treatment (neon lemon, amber stains, chipped edges; see
+# lettering.py). The blocks are the size of the wordmark's pixels, and the sun keeps the wallpaper's place, size and colours:
 #   unlock-sinners-sun.png, preview-unlock-sinners-sun.png
 #
 #   usage: tools/make-unlock-sun.sh [WIDTHxHEIGHT]      the screen size; default 1920x1200 (hyprctl monitors)
@@ -37,7 +38,9 @@ python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT
 PT=$(awk -v p="$PT" -v t="$TARGET" -v w="$(ink_width "$T/title.png")" 'BEGIN{printf "%d", p*t/w+0.5}')
 python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT" --wordmark "$WORDMARK" >/dev/null
 echo "title: pointsize $PT, ink $(ink_width "$T/title.png")px wide (target $TARGET); the sun is $(awk -v r="$SUN_R" -v s="$SCALE" 'BEGIN{printf "%d", 2*r*s+0.5}')px"
-python3 -I "$ROOT/tools/sun-unlock.py" --screen "$SCREEN" --word "$T/title.png" --out "$ROOT/unlock-sinners-sun.png"
+# The disc is drawn in square blocks the size of the wordmark's pixels (a column of the art is PT/16.6 px; see lettering.py).
+PIXEL=$(awk -v p="$PT" 'BEGIN{printf "%d", p/16.6+0.5}')
+python3 -I "$ROOT/tools/sun-unlock.py" --screen "$SCREEN" --word "$T/title.png" --pixel "$PIXEL" --out "$ROOT/unlock-sinners-sun.png"
 
 # Preview: the screen as Plymouth draws it (logo centered, password field 40px below it), fitted into the 1920x1080
 # frame the other previews use so the theme switcher shows them alike.

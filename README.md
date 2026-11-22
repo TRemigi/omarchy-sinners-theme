@@ -32,7 +32,7 @@ has a source, so the palette holds together.
 - **A warm glow** around the focused window*
 - A complete custom **Neovim** theme using the theme's own colorscheme, [sinners.nvim](https://github.com/TRemigi/sinners.nvim)*
 - **Four disk-unlock screens** to choose from: the sun-gold wordmark, rising embers, glowing red eyes, or the wallpaper's sun
-  behind a Sinners-style title
+  as pixel art behind the Omarchy wordmark in the poster's neon lettering
 
 \* Omarchy leaves these out of themes installed from GitHub, so they come as the `glow` and `neovim` extras. See
 [Quick start](#quick-start).
@@ -245,8 +245,8 @@ you don't need the extras.
 The second command opens a picker with all four unlock screens. After the first command, the picker is also in the Omarchy menu
 under **Appearance > Sinners Unlock**. Applying a screen asks for your password, because it changes the boot screen.
 
-The **sinners-sun** screen lines its sun up exactly with the wallpaper's sun, so the sun stays in place when the desktop
-appears. That only works at one screen size, which is 1920x1200 by default. For a different screen, rebuild it at your size:
+The **sinners-sun** screen draws its sun in the same place and at the same size as the wallpaper's sun, so the sun stays in
+place when the desktop appears, and goes from pixel art to smooth. That only works at one screen size, which is 1920x1200 by default. For a different screen, rebuild it at your size:
 
     tools/make-unlock-sun.sh 2560x1600
 
