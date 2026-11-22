@@ -3,6 +3,14 @@
 # wordmark (/usr/share/omarchy/logo.txt) given the poster title's treatment (neon lemon, amber stains, chipped edges; see
 # lettering.py). The blocks are the size of the wordmark's pixels, and the sun keeps the wallpaper's place, size and colours:
 #   unlock-sinners-sun.png, preview-unlock-sinners-sun.png
+#   unlock-sinners-sun-plain.png, preview-unlock-sinners-sun-plain.png: the same screen without the title
+#   backgrounds/0-sinners-pixel-sun.webp: the same picture as a 3840x2160 wallpaper on the theme's background colour, the
+#     default one (Omarchy starts a theme on the first of its backgrounds). Its sun, title and blocks are the unlock screen's
+#     scaled to the wallpaper, so on the screen this is built for, the unlock screen gives way to it without a jump.
+#   backgrounds/2-sinners-pixel-sun-plain.webp: the same wallpaper without the title (it sorts after the farmhouse wallpaper,
+#     so the default stays the one with the title)
+# Both put the sun in the middle of the screen (--centre), not above it where the farmhouse wallpaper has it, so they match
+# each other and not that wallpaper. tools/verify-sun.py checks the sun's size and colours against the farmhouse wallpaper.
 #
 #   usage: tools/make-unlock-sun.sh [WIDTHxHEIGHT]      the screen size; default 1920x1200 (hyprctl monitors)
 #          SINNERS_SCREEN=2560x1600 tools/make-unlock-sun.sh
@@ -40,7 +48,19 @@ python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT
 echo "title: pointsize $PT, ink $(ink_width "$T/title.png")px wide (target $TARGET); the sun is $(awk -v r="$SUN_R" -v s="$SCALE" 'BEGIN{printf "%d", 2*r*s+0.5}')px"
 # The disc is drawn in square blocks the size of the wordmark's pixels (a column of the art is PT/16.6 px; see lettering.py).
 PIXEL=$(awk -v p="$PT" 'BEGIN{printf "%d", p/16.6+0.5}')
-python3 -I "$ROOT/tools/sun-unlock.py" --screen "$SCREEN" --word "$T/title.png" --pixel "$PIXEL" --out "$ROOT/unlock-sinners-sun.png"
+"$ROOT/tools/make-wallpaper.sh" "$T/layer.png" --sun-layer >/dev/null   # the 4K sun layer, shared by both builds below
+python3 -I "$ROOT/tools/sun-unlock.py" --screen "$SCREEN" --layer "$T/layer.png" --word "$T/title.png" --pixel "$PIXEL" --centre \
+  --out "$ROOT/unlock-sinners-sun.png" --out-plain "$ROOT/unlock-sinners-sun-plain.png"
+
+# Wallpaper: the same build on the full 3840x2160 wallpaper canvas. Everything sized in screen pixels above is divided by the
+# screen's scale (the wallpaper is shown at SCALE of its size), so it comes back to the unlock screen's size on that screen.
+PT4K=$(awk -v p="$PT" -v s="$SCALE" 'BEGIN{printf "%d", p/s+0.5}')
+python3 -I "$ROOT/tools/lettering.py" "$T/title4k.png" "$T/lettering4k" OMARCHY "$PT4K" --wordmark "$WORDMARK" >/dev/null
+python3 -I "$ROOT/tools/sun-unlock.py" --screen 3840x2160 --canvas 3840x2160 --layer "$T/layer.png" --word "$T/title4k.png" --centre \
+  --pixel "$(awk -v p="$PIXEL" -v s="$SCALE" 'BEGIN{print p/s}')" --ellipse-x "$(awk -v s="$SCALE" 'BEGIN{print 640/s}')" \
+  --ember-scale "$(awk -v s="$SCALE" 'BEGIN{print 1/s}')" --out "$T/wall.png" --out-plain "$T/wall-plain.png" >/dev/null
+magick -size 3840x2160 "xc:$BG" "$T/wall.png" -compose Over -composite -define webp:lossless=true "$ROOT/backgrounds/0-sinners-pixel-sun.webp"
+magick -size 3840x2160 "xc:$BG" "$T/wall-plain.png" -compose Over -composite -define webp:lossless=true "$ROOT/backgrounds/2-sinners-pixel-sun-plain.webp"
 
 # Preview: the screen as Plymouth draws it (logo centered, password field 40px below it), fitted into the 1920x1080
 # frame the other previews use so the theme switcher shows them alike.
@@ -49,9 +69,11 @@ X0=$(( (SW - CW) / 2 )); Y0=$(( (SH - CH) / 2 ))
 magick -size 256x1 gradient:"$BG-$FG" "$T/ramp.png"
 magick "$STOCK/preview-unlock.png" -crop 360x60+750+665 +repage -depth 8 -colorspace Gray \
   -level 15%,86% "$T/ramp.png" -clut "$T/lockfield.png"
-magick -size "${SW}x${SH}" "xc:$BG" \
-  "$ROOT/unlock-sinners-sun.png" -geometry "+$X0+$Y0" -composite \
-  "$T/lockfield.png" -geometry "+$(( 750 + (SW - 1920) / 2 ))+$(( Y0 + CH + 40 - 9 ))" -composite \
-  -resize 1920x1080 -background "$BG" -gravity center -extent 1920x1080 \
-  -depth 8 +set date:create +set date:modify +set date:timestamp "$ROOT/preview-unlock-sinners-sun.png"
-echo "wrote unlock-sinners-sun.png and preview-unlock-sinners-sun.png for a ${SCREEN} screen"
+for name in sinners-sun sinners-sun-plain; do
+  magick -size "${SW}x${SH}" "xc:$BG" \
+    "$ROOT/unlock-$name.png" -geometry "+$X0+$Y0" -composite \
+    "$T/lockfield.png" -geometry "+$(( 750 + (SW - 1920) / 2 ))+$(( Y0 + CH + 40 - 9 ))" -composite \
+    -resize 1920x1080 -background "$BG" -gravity center -extent 1920x1080 \
+    -depth 8 +set date:create +set date:modify +set date:timestamp "$ROOT/preview-unlock-$name.png"
+done
+echo "wrote unlock-sinners-sun{,-plain}.png, their previews and backgrounds/{0-sinners-pixel-sun,2-sinners-pixel-sun-plain}.webp for a ${SCREEN} screen"

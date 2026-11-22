@@ -28,11 +28,12 @@ has a source, so the palette holds together.
 **The theme**
 
 - **A full color palette**, which Omarchy applies to your terminals, btop, VS Code, the lock screen and the window borders
-- **An original wallpaper**: the poster's sun, sky and farmhouse
+- **Three original wallpapers**: the default is the sun as pixel art behind the Omarchy wordmark, matching the sinners-sun
+  unlock screen; the second is the poster's sun, sky and farmhouse; the third is the pixel-art sun without the wordmark
 - **A warm glow** around the focused window*
 - A complete custom **Neovim** theme using the theme's own colorscheme, [sinners.nvim](https://github.com/TRemigi/sinners.nvim)*
-- **Four disk-unlock screens** to choose from: the sun-gold wordmark, rising embers, glowing red eyes, or the wallpaper's sun
-  as pixel art behind the Omarchy wordmark in the poster's neon lettering
+- **Five disk-unlock screens** to choose from: the sun-gold wordmark, rising embers, glowing red eyes, the wallpaper's sun
+  as pixel art behind the Omarchy wordmark in the poster's neon lettering, or the same pixel-art sun without the wordmark
 
 \* Omarchy leaves these out of themes installed from GitHub, so they come as the `glow` and `neovim` extras. See
 [Quick start](#quick-start).
@@ -242,11 +243,13 @@ you don't need the extras.
     bin/extras install command menu
     omarchy-sinners-unlock
 
-The second command opens a picker with all four unlock screens. After the first command, the picker is also in the Omarchy menu
+The second command opens a picker with all five unlock screens. After the first command, the picker is also in the Omarchy menu
 under **Appearance > Sinners Unlock**. Applying a screen asks for your password, because it changes the boot screen.
 
-The **sinners-sun** screen draws its sun in the same place and at the same size as the wallpaper's sun, so the sun stays in
-place when the desktop appears, and goes from pixel art to smooth. That only works at one screen size, which is 1920x1200 by default. For a different screen, rebuild it at your size:
+The **sinners-sun** screen matches the default pixel-sun wallpaper, and **sinners-sun-plain** matches the plain one: the same sun, centered on the screen, at the same size,
+so when the desktop appears the picture stays put and only the password field goes away. That only works at one screen size,
+which is 1920x1200 by default. For a different screen, rebuild it at your size
+(this rebuilds the pixel-sun wallpaper too):
 
     tools/make-unlock-sun.sh 2560x1600
 

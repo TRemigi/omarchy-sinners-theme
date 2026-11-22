@@ -30,11 +30,15 @@ ap.add_argument('--layer', help='4K sun layer from make-wallpaper.sh --sun-layer
 ap.add_argument('--word', help='the title PNG; omitted = the sun alone')
 ap.add_argument('--word-dy', type=float, help='title centre, px below the sun centre; default 0: centred on the sun. (On the poster the title sits 0.13 radii low, because it is part of a text block that is itself centred.)')
 ap.add_argument('--embers', type=int, default=40, help='sparks in the glow around the sun')
-ap.add_argument('--pixel', type=int, default=0, help='draw the disc as square blocks this many px a side, like ASCII art (match the '
+ap.add_argument('--pixel', type=float, default=0, help='draw the disc as square blocks this many px a side, like ASCII art (match the '
                                                      "wordmark's pixels); 0, the default, keeps the wallpaper's smooth disc")
 ap.add_argument('--fade', default='ellipse', choices=['rect', 'radial', 'ellipse'], help='how the halo fades out before the canvas ends')
 ap.add_argument('--ellipse-x', type=float, default=640, help='ellipse fade: horizontal reach from the sun centre, px')
+ap.add_argument('--centre', action='store_true', help="put the sun in the middle of the screen, not where the wallpaper has it "
+                                                       "(above the middle); for a picture that only has to match itself, such as the pixel-sun wallpaper")
+ap.add_argument('--ember-scale', type=float, default=1.0, help='size of the embers, as a multiple of their size on a 1920x1200 unlock screen')
 ap.add_argument('--out', required=True)
+ap.add_argument('--out-plain', help='also write the same picture without the title (the embers are placed as if it were there)')
 ap.add_argument('--screen-layer', help='also write the screen-sized sun layer here (for verification)')
 a = ap.parse_args()
 
@@ -42,6 +46,8 @@ SW, SH = map(int, a.screen.split('x'))
 s = max(SW / WALLPAPER_W, SH / WALLPAPER_H)                   # cover-fit scale
 sw_s, sh_s = round(WALLPAPER_W * s), round(WALLPAPER_H * s)   # scaled wallpaper size
 ox, oy = (sw_s - SW) / 2, (sh_s - SH) / 2                      # centered crop, in px (can be half pixels)
+if a.centre:                                                   # crop so the sun's centre is the screen's centre instead
+    ox, oy = SUN_X * sw_s / WALLPAPER_W - SW / 2, SUN_Y * s - SH / 2
 if a.canvas:
     CW, CH = map(int, a.canvas.split('x'))
 else:
@@ -151,7 +157,8 @@ if a.embers:
     draws, placed, tries = [], 0, 0
     while placed < a.embers and tries < 4000:
         tries += 1
-        x = random.gauss(sun_x, sun_r * 0.95)                                   # rising: denser above the sun
+        side = 1 if placed % 2 else -1                                          # alternate sides, so the two are even
+        x = sun_x + side * abs(random.gauss(0, sun_r * 0.95))                   # rising: denser above the sun
         y = sun_y - abs(random.gauss(0, sun_r * 1.15)) + random.gauss(0, sun_r * 0.15)
         if not (24 < x < CW - 24 and 24 < y < CH - 150): continue
         if word_box and word_box[0] < x < word_box[2] and word_box[1] < y < word_box[3]: continue
@@ -159,12 +166,16 @@ if a.embers:
         if d < sun_r + 10: continue
         color = GOLD if random.random() < 0.4 else ORANGE if random.random() < 0.65 else RED
         alpha = random.uniform(0.35, 0.95) * max(0.25, 1 - max(0, d - sun_r) / (sun_r * 1.2))
-        size = 10 if random.random() < 0.2 else 6
+        size = round((10 if random.random() < 0.2 else 6) * a.ember_scale)
         ex, ey = int(x) // 2 * 2, int(y) // 2 * 2
         draws += ['-fill', f'rgba({color[0]},{color[1]},{color[2]},{alpha:.2f})', '-draw', f'rectangle {ex},{ey} {ex + size - 1},{ey + size - 1}']
         placed += 1
     cmd += draws
 if a.word:
     cmd += [a.word, '-geometry', f'+{wx}+{wy}', '-compose', 'Over', '-composite']
-m(*cmd, '+repage', '-depth', '8', '+set', 'date:create', '+set', 'date:modify', '+set', 'date:timestamp', a.out)
+stamp = ['+repage', '-depth', '8', '+set', 'date:create', '+set', 'date:modify', '+set', 'date:timestamp']
+if a.out_plain:
+    plain = cmd[:-6] if a.word else cmd                        # everything but the title's composite
+    m(*plain, *stamp, a.out_plain)
+m(*cmd, *stamp, a.out)
 print(f'wrote {a.out} ({CW}x{CH}); the password field will sit at y={y0 + CH + 40} of {SH}')
