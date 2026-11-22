@@ -23,7 +23,9 @@ WALLPAPER_W, WALLPAPER_H, SUN_X, SUN_Y, SUN_R = map(int, geo.groups())
 
 ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
 ap.add_argument('--screen', default='1920x1200', help='the real screen size, WxH (hyprctl monitors)')
-ap.add_argument('--canvas', help='logo size WxH; default: the screen minus a margin of 1/12 of its width and 1/10 of its height per side')
+ap.add_argument('--canvas', help='logo size WxH; default: the screen minus a margin of 1/12 of its width per side, and as much of its height '
+                                 'per side as leaves 40px above the sun (at least 1/10 of the height). Plymouth centres the logo, so the '
+                                 'bottom margin has to match the top one, and a taller top margin is what shortens the empty space below the sun')
 ap.add_argument('--layer', help='4K sun layer from make-wallpaper.sh --sun-layer; built if omitted')
 ap.add_argument('--word', help='the title PNG; omitted = the sun alone')
 ap.add_argument('--word-dy', type=float, help='title centre, px below the sun centre; default 0: centred on the sun. (On the poster the title sits 0.13 radii low, because it is part of a text block that is itself centred.)')
@@ -35,14 +37,15 @@ ap.add_argument('--screen-layer', help='also write the screen-sized sun layer he
 a = ap.parse_args()
 
 SW, SH = map(int, a.screen.split('x'))
-if a.canvas:
-    CW, CH = map(int, a.canvas.split('x'))
-else:
-    CW, CH = SW - 2 * round(SW / 12), SH - 2 * round(SH / 10)
-assert (SW - CW) % 2 == 0 and (SH - CH) % 2 == 0, 'canvas and screen must have the same parity so Plymouth centers on whole pixels'
 s = max(SW / WALLPAPER_W, SH / WALLPAPER_H)                   # cover-fit scale
 sw_s, sh_s = round(WALLPAPER_W * s), round(WALLPAPER_H * s)   # scaled wallpaper size
 ox, oy = (sw_s - SW) / 2, (sh_s - SH) / 2                      # centered crop, in px (can be half pixels)
+if a.canvas:
+    CW, CH = map(int, a.canvas.split('x'))
+else:
+    sun_top = (SUN_Y - SUN_R) * s - oy                         # the disc's top edge on the screen
+    CW, CH = SW - 2 * round(SW / 12), SH - 2 * max(round(SH / 10), math.floor(sun_top) - 40)
+assert (SW - CW) % 2 == 0 and (SH - CH) % 2 == 0, 'canvas and screen must have the same parity so Plymouth centers on whole pixels'
 x0, y0 = (SW - CW) // 2, (SH - CH) // 2                        # where Plymouth puts the logo's top-left corner
 sun_x, sun_y, sun_r = SUN_X * sw_s / WALLPAPER_W - ox - x0, SUN_Y * s - oy - y0, SUN_R * s   # in logo coordinates
 word_dy = a.word_dy if a.word_dy is not None else 0.0
