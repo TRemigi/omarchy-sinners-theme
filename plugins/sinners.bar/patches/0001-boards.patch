@@ -1,0 +1,154 @@
+--- a/Bar.qml
++++ b/Bar.qml
+@@ -76,7 +76,10 @@
+   // Resolves through fontconfig at paint time (Style.font.family defaults
+   // to "monospace"), so changing the system font (via `omarchy-font-set`)
+   // updates the bar without a reload.
+-  property string fontFamily: Style.font.family
++  // A horizontal bar's lettering is a condensed black sans, like a sign painter's, whatever the system font is: the bar's
++  // widgets and tooltips all draw with this one property. The popups they open keep the system font. If Noto Sans is not
++  // installed Qt falls back to its default font, and the lettering is merely plainer.
++  property string fontFamily: vertical ? Style.font.family : "Noto Sans Condensed Black"
+   // Bound to the central Color singleton so the bar tracks shell.toml's
+   // [bar] section. Property names kept for the rest of this file's bindings.
+   property color themeForeground: Commons.Color.bar.text
+@@ -714,6 +717,11 @@
+ 
+   readonly property bool vertical: position === "left" || position === "right"
+   readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
++  // A horizontal bar is wooden boards, drawn 36px tall: a board 30 tall, 3 of margin above it, and under it the shadow it
++  // casts on the wallpaper, which a layer surface can only draw inside itself. Widgets still size themselves by barSize, which
++  // stays stock, and are centred on the board. Only the strip's thickness (exclusive zone, popups, the centre) uses stripSize.
++  // A vertical bar is stock.
++  readonly property int stripSize: vertical ? barSize : Style.space(36)
+ 
+   // Display cutouts (a camera notch) the platform's own package describes in
+   // the fixed platform root, which no environment variable moves. Most machines
+@@ -762,8 +770,8 @@
+   // the cutout is this panel's minimum sensible top-bar height. An
+   // intentionally taller bar still wins.
+   function thicknessFor(screen) {
+-    if (root.vertical || !screen) return root.barSize
+-    return Math.max(root.barSize, BarModel.notchFloor(root.displayCutouts, root.position, screen.name, screen.width, screen.height, screen.devicePixelRatio, root.panelModeFor(screen), Style.bar.notchHeight))
++    if (root.vertical || !screen) return root.stripSize
++    return Math.max(root.stripSize, BarModel.notchFloor(root.displayCutouts, root.position, screen.name, screen.width, screen.height, screen.devicePixelRatio, root.panelModeFor(screen), Style.bar.notchHeight))
+   }
+ 
+   // Each screen's bar thickness, by screen name: barSize, or more where a notch
+@@ -777,7 +785,7 @@
+   }
+ 
+   function barSizeFor(screenName) {
+-    return BarModel.barSizeFor(root.screenBarSizes, screenName, root.barSize)
++    return BarModel.barSizeFor(root.screenBarSizes, screenName, root.stripSize)
+   }
+ 
+   function normalizePosition(value) {
+@@ -1515,7 +1523,7 @@
+     transparentForegroundProc.command = [
+       "omarchy-bar-text-color",
+       root.position,
+-      String(root.barSize),
++      String(root.stripSize),
+       colorHex(root.themeForeground),
+       colorHex(root.themeContrastForeground)
+     ]
+@@ -1835,7 +1843,8 @@
+ 
+       Rectangle {
+         anchors.fill: parent
+-        color: root.transparent ? "transparent" : (root.glassy ? root.glassBackground : root.background)
++        // A horizontal bar is boards (WoodBoard), not a strip: nothing is painted behind them.
++        color: !root.vertical || root.transparent ? "transparent" : (root.glassy ? root.glassBackground : root.background)
+       }
+ 
+       Loader {
+@@ -1946,23 +1955,50 @@
+           drawn: !barWindow.centerBesideRight
+         }
+ 
++        // Each section sits on its own board, which reaches Style.space(17) past the widgets on each side (the nails at its ends
++        // are 11 in from the end, so the widgets stay clear of them), so the sections are set in from the edge by 17 more than
++        // the stock bar's 8.
++        WoodBoard {
++          id: leftBoard
++          name: "left"
++          visible: leftModules.width > 0
++          x: leftModules.x - Style.space(17)
++          width: leftModules.width + 2 * Style.space(17)
++          height: parent.height
++        }
++
+         LeftModules {
++          id: leftModules
+           window: barWindow
+           pool: horizontalPool
+           anchors.left: parent.left
+-          anchors.leftMargin: Style.space(8)
++          anchors.leftMargin: Style.space(25)
+           anchors.verticalCenter: parent.verticalCenter
+         }
+ 
++        // Grain on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and takes no input.
++        WornPaint { board: leftBoard; seed: 1 }
++
++        WoodBoard {
++          id: rightBoard
++          name: "right"
++          visible: rightModules.width > 0
++          x: rightModules.x - Style.space(17)
++          width: rightModules.width + 2 * Style.space(17)
++          height: parent.height
++        }
++
+         RightModules {
+           window: barWindow
+           pool: horizontalPool
+           id: rightModules
+           anchors.right: parent.right
+-          anchors.rightMargin: Style.space(8)
++          anchors.rightMargin: Style.space(25)
+           anchors.verticalCenter: parent.verticalCenter
+         }
+ 
++        WornPaint { board: rightBoard; seed: 2 }
++
+         // Where a display notch covers the middle of the bar, the center
+         // sections run on just left of the right one. They keep their regions,
+         // so settings pushes, drag and drop, and panel routing still address
+@@ -2314,7 +2350,7 @@
+     property bool besideRight: false
+ 
+     implicitWidth: root.vertical ? root.barSize : beginList.width + centerBox.width + endList.width
+-    implicitHeight: root.vertical ? beginList.height + centerBox.height + endList.height : root.barSize
++    implicitHeight: root.vertical ? beginList.height + centerBox.height + endList.height : root.stripSize
+ 
+     // Both placements sit at the bar surface's origin or anchor off its edge,
+     // so the box's start in the sections is its start on the surface.
+@@ -2333,6 +2369,16 @@
+       function onCenterSectionRevealHeldChanged() { sections.syncPeekEdge() }
+     }
+ 
++    // The middle of a horizontal bar is one board: what hangs off the clock's start, the clock, and what hangs off its end.
++    WoodBoard {
++      id: centerBoard
++      name: "center"
++      visible: !root.vertical && sections.active && width > 2 * Style.space(17)
++      x: beginList.x - Style.space(17)
++      width: beginList.width + centerBox.width + endList.width + 2 * Style.space(17)
++      height: sections.height
++    }
++
+     ModuleList {
+       id: beginList
+       keys: sections.active ? root.layoutWidgets.sections.centerBegin : []
+@@ -2365,6 +2411,9 @@
+       x: root.vertical ? 0 : (sections.besideRight ? beginList.width : Math.round((sections.width - width) / 2))
+       y: root.vertical ? Math.round((sections.height - height) / 2) : 0
+     }
++
++    // Grain on the middle board's lettering, as for the left and right (it follows the board, which is shown on a horizontal bar only).
++    WornPaint { board: centerBoard; seed: 3 }
+   }
+ 
+   // The middle of the bar: the center section's widgets, centered as one

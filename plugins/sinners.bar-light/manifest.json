@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "sinners.bar-light",
+  "name": "Sinners Bar (light)",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "The Sinners bar on light boards: the warm grey wood of the film's Club Juke sign, with its lettering in the theme's deep rust. Omarchy's own bar with a board drawn behind each section, as sinners.bar, but light. Horizontal bars only; a left or right bar looks stock.",
+  "kinds": [
+    "bar"
+  ],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  }
+}

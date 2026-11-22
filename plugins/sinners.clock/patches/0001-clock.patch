@@ -1,0 +1,45 @@
+--- a/BarWidget.qml
++++ b/BarWidget.qml
+@@ -2,6 +2,7 @@
+ import Quickshell
+ import Quickshell.Io
+ import qs.Commons
++import qs.Commons as Commons
+ import qs.Ui
+ import "Model.js" as Model
+ 
+@@ -16,6 +17,17 @@
+ 
+   property date displayDate: clock.date
+ 
++  // The clock is lettered in Cinzel Decorative Black (SIL Open Font License; fonts/OFL.txt): flared, swashy capitals, in the spirit
++  // of the Club Juke sign's lettering. It is loaded from this plugin's own folder, so nothing is installed. If it cannot be loaded,
++  // or on a vertical bar, the clock is lettered as the stock clock is.
++  FontLoader { id: signFont; source: Qt.resolvedUrl("fonts/CinzelDecorative-Black.ttf") }
++  readonly property bool signLettering: !vertical && signFont.status === FontLoader.Ready
++
++  // The light bar (sinners.bar-light) has dark lettering, because its boards are light; the dark bar has cream. The bar's text colour is
++  // all this widget is told of the bar, so it is how it tells which it is on: dark text means light boards.
++  readonly property bool lightBoards: bar && bar.barForeground
++    ? bar.barForeground.r * 0.2126 + bar.barForeground.g * 0.7152 + bar.barForeground.b * 0.0722 < 0.4 : false
++
+   readonly property string configuredFormat: vertical
+     ? setting("verticalFormat", "HH\n—\nmm")
+     : setting("format", "dddd HH:mm")
+@@ -155,7 +167,15 @@
+     id: button
+     anchors.fill: parent
+     bar: root.bar
+-    text: root.vertical ? "" : root.displayText
++    // The clock is the bar's one gold thing on the dark bar, so the eye goes to the time first: the sun's gold (colors.toml's yellow), or
++    // [bar] clock in the theme's shell.toml if it has one. On the light bar, whose boards are the light wood of the film's sign, it is the
++    // sign's red deepened to 55%, #682016, for legibility (the sign's own red is 2:1 on its wood), or [bar] clock-light. Everything else
++    // about the clock is stock.
++    foreground: root.lightBoards ? Commons.Color.flatColor(Commons.Color.pick("bar.clock-light", "#682016"), "#682016")
++                                 : Commons.Color.flatColor(Commons.Color.pick("bar.clock", "#F9BD06"), "#F9BD06")
++    fontFamily: root.signLettering ? signFont.name : (bar ? bar.fontFamily : Style.font.family)
++    fontSize: root.signLettering ? Style.font.body + 3 : Style.font.body
++    text: root.vertical ? "" : (root.signLettering ? root.displayText.toUpperCase() : root.displayText)
+     labelVisible: !root.vertical
+     hasVisualContent: root.vertical ? root.verticalLines.length > 0 : text !== ""
+     fixedHeight: root.vertical ? root.verticalLines.length * Style.bar.iconSlot : -1

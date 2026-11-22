@@ -1,0 +1,41 @@
+--- a/Bar.qml
++++ b/Bar.qml
+@@ -82,7 +82,10 @@
+   property string fontFamily: vertical ? Style.font.family : "Noto Sans Condensed Black"
+   // Bound to the central Color singleton so the bar tracks shell.toml's
+   // [bar] section. Property names kept for the rest of this file's bindings.
+-  property color themeForeground: Commons.Color.bar.text
++  // The light bar's boards are the light wood of the film's sign, so its lettering is dark: the theme's deep rust (colors.toml's selection,
++  // #5A1F0F), or [bar] text-light in the theme's shell.toml. The widgets read this colour, and the shown workspace and the clock
++  // (sinners.workspaces, sinners.clock) tell from it that the boards are light and dress to suit.
++  property color themeForeground: Commons.Color.flatColor(Commons.Color.pick("bar.text-light", "#5A1F0F"), "#5A1F0F")
+   property color themeContrastForeground: Commons.Color.background
+   property color transparentForeground: Commons.Color.bar.text
+   property color foreground: themeForeground
+@@ -1977,7 +1980,7 @@
+         }
+ 
+         // Grain on each board's lettering (see WornPaint.qml): drawn over the board's widgets, it redraws nothing and takes no input.
+-        WornPaint { board: leftBoard; seed: 1 }
++        WornPaint { board: leftBoard; seed: 1; grain: 0.4 }
+ 
+         WoodBoard {
+           id: rightBoard
+@@ -1997,7 +2000,7 @@
+           anchors.verticalCenter: parent.verticalCenter
+         }
+ 
+-        WornPaint { board: rightBoard; seed: 2 }
++        WornPaint { board: rightBoard; seed: 2; grain: 0.4 }
+ 
+         // Where a display notch covers the middle of the bar, the center
+         // sections run on just left of the right one. They keep their regions,
+@@ -2413,7 +2416,7 @@
+     }
+ 
+     // Grain on the middle board's lettering, as for the left and right (it follows the board, which is shown on a horizontal bar only).
+-    WornPaint { board: centerBoard; seed: 3 }
++    WornPaint { board: centerBoard; seed: 3; grain: 0.3 }
+   }
+ 
+   // The middle of the bar: the center section's widgets, centered as one

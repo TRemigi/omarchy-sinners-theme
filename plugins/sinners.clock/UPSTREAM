@@ -1,0 +1,6 @@
+omarchy 4.5.0-3
+# sha256 of the stock files these were built from
+e73f7a17f74ade40711dffa8262c1773b7bf74fd65a3047011317f588af9f3f6  BarWidget.qml
+9eed7b315a07c61aeb57aa9ed7ae27b126eea91ecc66af0b5f49ce792ef56b7c  Panel.qml
+8a2645eb75b22d4ee4b278e19b5092a91638f4b3af9a704999f7cd86d7f1091e  Model.js
+369c0c5313a56b9963e6b1853ebf9294b666c3ec9aa9fa819f3becb024a5261d  WallClock.qml
