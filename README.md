@@ -2,7 +2,8 @@
 
 An [Omarchy](https://omarchy.org/) theme based on the key art for *Sinners* (2025, dir. Ryan Coogler).
 Single dark theme: warm near-black, with the poster sun's gold, orange and red as the accent colors.
-The one cool color in the art, the teaser's steel blue, is used for blue and cyan.
+The cool colors, the green and the magenta come from the film itself: Smoke's cap for blue and cyan,
+Stack's fedora for magenta, and the foliage for green.
 
 ## Quick start
 
@@ -68,8 +69,11 @@ and it never removes a package. Every check for every extra you select runs befo
 
 ## What is in it
 
-- `colors.toml`: the palette. Terminals, btop, Neovim, VS Code, the shell, the lock screen and Hyprland
+- `colors.toml`: the palette. Terminals, btop, VS Code, the shell, the lock screen and Hyprland
   borders are all generated from it by Omarchy.
+- `neovim.lua`: loads the theme's own Neovim colorscheme, [sinners.nvim](https://github.com/TRemigi/sinners.nvim),
+  instead of Omarchy's generic one. It uses `~/dev/sinners.nvim` when that checkout exists. Omarchy skips this
+  file for a theme installed with `omarchy theme install` from git; see the sinners.nvim README for that case.
 - `backgrounds/1-sinners-sun.webp`: an original wallpaper made by `tools/make-wallpaper.sh` (needs ImageMagick).
   The sun follows the one on the poster, measured from it. Its color runs gold at the top, through orange, to a
   red-orange below the middle, which is what lets a yellow title read on it. The yellow does not run to the edge:
@@ -545,8 +549,21 @@ and looked at at several sizes, but not on the bar.
 
 ## Palette provenance
 
-Colors were sampled by k-means clustering of the press-kit main art and teaser art
-(https://www.sinnersmovie.com/toolkit/). The art has no green, cyan or magenta, so those slots are
-derived and marked `[derived]` in `colors.toml`. Green is provisional.
+The warm colors were sampled by k-means clustering of the press-kit main art and teaser art
+(https://www.sinnersmovie.com/toolkit/). That art has no green, cyan or magenta, so palette v0.2 takes those
+from the film: promotional GIFs and a still, each color sampled from one region across every frame and then
+lightened until it reads on the background, keeping its hue. Colors are named for the characters they come from:
+
+| Name | Source | Slot |
+| --- | --- | --- |
+| stack | the lit crown of Stack's fedora, hue 24-27 | `magenta` |
+| smoke | Smoke's newsboy cap, hue 218-227 | `blue` |
+| smoke, light | the light on Smoke's cap and the night fog | `cyan` |
+| sammie | Sammie's vest in daylight, hue 76-78 | none; the Neovim theme uses it for strings |
+| foliage | the leaves behind the twins | `green` |
+
+The film has no saturated color between hue 260 and 20 (OKLCH), so there is no purple, and magenta is Stack's
+red-brown rose. Comments (`muted`) are a taupe made from the cream; the teaser's mauve stays as `dark_foreground`.
+`colors.toml` gives each slot's source and its contrast against the background.
 
 Not included: `preview.png` (theme-switcher thumbnail, needs a screenshot of the applied theme).

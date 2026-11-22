@@ -1,13 +1,20 @@
-# Sinners - an Omarchy theme from Ryan Coogler's "Sinners" (2025) key art.
-# Palette v0.1: k-means sampling of the official press-kit main art and teaser art.
-# Slots marked [derived] are extrapolated, because the art has no green, cyan or magenta.
+# Sinners - an Omarchy theme from Ryan Coogler's "Sinners" (2025).
+# Palette v0.2. The warm colors come from the press-kit main art and teaser art (k-means sampling).
+# The cool colors, the green and the magenta come from the film: promotional GIFs and a still,
+# each sampled from one region across every frame, then lightened to read on the background
+# with the sampled hue kept. Colors are named for the characters they come from:
+#   stack  = Stack's fedora, an oxblood rose (magenta)
+#   smoke  = Smoke's newsboy cap: its shadowed blue (blue) and the light on it (cyan)
+#   sammie = Sammie's vest, a marigold mustard. It has no slot here; sinners.nvim uses it for strings.
+# The film has no purple or magenta hue at all (nothing saturated between 260 and 20 degrees, OKLCH),
+# so magenta is Stack's red-brown rose rather than a true magenta.
 # Contrast ratios are against background #1A0905.
 
 mode = "dark"
 
 accent    = "#FB7407"   # main art, sun-edge orange (7.0:1)
 selection = "#5A1F0F"   # main art, deep rust; selected rows and meters
-muted     = "#956362"   # teaser art, mauve; ANSI bright black, comments (3.9:1)
+muted     = "#857368"   # taupe, derived from the cream; ANSI bright black, comments (4.3:1)
 
 background         = "#1A0905"   # main art, darkest cluster; ANSI black
 dark_background    = "#140704"   # 25% toward black, the engine default
@@ -22,18 +29,18 @@ bright_foreground = "#F8EFD9"   # teaser art, title cream; cursor and ANSI brigh
 red     = "#E91A02"   # teaser art (4.3:1)
 yellow  = "#F9BD06"   # main art, sun gold (11.3:1)
 orange  = "#FB7407"   # main art, sun-edge orange
-green   = "#9AA32B"   # [derived] neon title yellow shifted toward olive; PROVISIONAL (7.1:1)
-cyan    = "#4E8F94"   # [derived] teaser steel blue shifted toward teal (5.2:1)
-blue    = "#5B93AB"   # [derived] teaser steel blue #3E6E82, lightened (5.7:1)
-magenta = "#B5686A"   # [derived] teaser mauve, more saturated (4.8:1)
-brown   = "#7A3C20"   # main art, burnt umber
+green   = "#87B188"   # film, foliage behind the twins (#4C5726, hue 120-145), lightened (8.0:1)
+cyan    = "#8FCBC6"   # film, smoke: the light on Smoke's cap (#59888F) and the night fog teal (10.6:1)
+blue    = "#54ABCA"   # film, smoke: Smoke's cap (#13546B-#387383, hue 218-227), lightened (7.4:1)
+magenta = "#D37772"   # film, stack: the lit crown of Stack's fedora (#9B4942-#C25E57, hue 24-27) (6.1:1)
+brown   = "#7A3C20"   # main art, burnt umber; also the leather of Sammie's guitar strap (#6F2800-#844812)
 
-bright_red     = "#F8502D"   # [derived] red, lightened (5.7:1)
+bright_red     = "#F8502D"   # [derived] red, lightened; matches the film's painted sign (#C33B14) (5.7:1)
 bright_yellow  = "#F7F104"   # main art, neon title yellow (16.2:1)
-bright_green   = "#B7C03A"   # [derived] PROVISIONAL (9.8:1)
-bright_cyan    = "#78B7BC"   # [derived] (8.6:1)
-bright_blue    = "#7FB2C6"   # [derived] (8.4:1)
-bright_magenta = "#D6918C"   # [derived] (7.6:1)
+bright_green   = "#ACD4A7"   # green, lightened (11.7:1)
+bright_cyan    = "#B1E3DE"   # cyan, lightened (13.7:1)
+bright_blue    = "#8BCCE5"   # blue, lightened (10.9:1)
+bright_magenta = "#F19E9B"   # magenta, lightened (9.3:1)
 
 # Window borders: the sun's gradient (gold to orange to red). Inactive is rust, not gray.
 hyprland_active_border   = "rgba(F9BD06ee) rgba(FB7407ee) rgba(E91A02ee) 45deg"
