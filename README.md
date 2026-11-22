@@ -28,8 +28,9 @@ has a source, so the palette holds together.
 **The theme**
 
 - **A full color palette**, which Omarchy applies to your terminals, btop, VS Code, the lock screen and the window borders
-- **Three original wallpapers**: the default is the sun as pixel art behind the Omarchy wordmark, matching the sinners-sun
-  unlock screen; the second is the poster's sun, sky and farmhouse; the third is the pixel-art sun without the wordmark
+- **Four original wallpapers**: the default is the sun as pixel art behind the Omarchy wordmark, matching the sinners-sun
+  unlock screen; the second is the poster's sun, sky and farmhouse; the third is the pixel-art sun without the wordmark; the
+  fourth is Club Juke at night in ASCII art, a cool moonlit counterpart to the others, with red eyes in the sky over the club
 - **A warm glow** around the focused window*
 - A complete custom **Neovim** theme using the theme's own colorscheme, [sinners.nvim](https://github.com/TRemigi/sinners.nvim)*
 - **Five disk-unlock screens** to choose from: the sun-gold wordmark, rising embers, glowing red eyes, the wallpaper's sun
@@ -265,7 +266,7 @@ which is 1920x1200 by default. For a different screen, rebuild it at your size
 
 ## Under the hood
 
-The wallpaper, the unlock screens and the wooden boards are all made by scripts in `tools/`, so you can rebuild or change any
+The wallpapers, the unlock screens and the wooden boards are all made by scripts in `tools/`, so you can rebuild or change any
 of them. Each script starts with comments explaining what it does and what it needs. The color sources and contrast ratios
 are listed in `colors.toml`.
 
