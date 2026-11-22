@@ -90,18 +90,26 @@ def make_wood(h, w, rng, ring=(6.0, 13.0), crack_rate=1 / 520, knots=None, blotc
     n_cr = 0 if crack_rate <= 0 else max(1, int(round(w * crack_rate * rng.uniform(0.7, 1.4))))
     for _ in range(n_cr):
         x = rng.uniform(-60, w)
-        if crack_y == "edges":       # keep checks above and below the lettering band
-            y = (rng.uniform(0.07, 0.26) if rng.random() < 0.5 else rng.uniform(0.74, 0.93)) * h
+        # lo..hi is where the check may run, and it drifts toward the middle of that. "edges" keeps a check in the band above or
+        # below the lettering that it starts in, all the way along: drifting toward the middle of the board, a long check would
+        # wander through the lettering.
+        if crack_y == "edges":
+            top = rng.random() < 0.5
+            y = (rng.uniform(0.07, 0.26) if top else rng.uniform(0.74, 0.93)) * h
+            lo, hi = (0.04 * h, 0.25 * h) if top else (0.75 * h, 0.96 * h)
         else:
             y = rng.uniform(0.08, 0.92) * h
+            lo, hi = 1, h - 2
+        y = float(np.clip(y, lo, hi))
+        centre = (lo + hi) * 0.5 if crack_y == "edges" else h * 0.5
         L = rng.uniform(140, 720) * (hs ** 0.5)
         steps = max(4, int(L / 5))
         yv = 0.0
         px, py = x, y
         for i in range(steps):
             x += 5.0
-            yv = yv * 0.94 + rng.normal(0, 0.11) + (h * 0.5 - y) * 0.003
-            y = float(np.clip(y + yv, 1, h - 2))
+            yv = yv * 0.94 + rng.normal(0, 0.11) + (centre - y) * 0.003
+            y = float(np.clip(y + yv, lo, hi))
             wd = 0.8 + 1.8 * hs * np.sin(np.pi * i / steps) ** 0.8 * rng.uniform(0.7, 1.15)
             d.line([(px, py), (x, y)], fill=255, width=max(1, int(round(wd))))
             px, py = x, y
@@ -109,8 +117,9 @@ def make_wood(h, w, rng, ring=(6.0, 13.0), crack_rate=1 / 520, knots=None, blotc
                 bx, by, bv = x, y, rng.normal(0, 0.9)
                 for _ in range(int(rng.uniform(5, 18))):
                     bx += 4.0
-                    by += bv
-                    d.line([(bx - 4, by - bv), (bx, by)], fill=255, width=1)
+                    nby = float(np.clip(by + bv, lo, hi))
+                    d.line([(bx - 4, by), (bx, nby)], fill=255, width=1)
+                    by = nby
     # a short radial check running out of each knot
     for cx, cy, rx, ry in kn:
         x, y = cx + rx * 0.8, cy
