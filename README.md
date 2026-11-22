@@ -319,6 +319,18 @@ text colour, rust, not the clock's red: the bar colours its widgets alike, and t
 **The shown workspace's square on the light bar is a suggestion, to be decided.** Not decided: the stock widget dims an empty workspace
 to half strength, which on light wood leaves its number faint.
 
+**The sun.** The dark bar's boards are backlit: the sun is low in the middle of the wallpaper and the bar is at the top of the screen, so the
+sun is behind the boards and below them. A backlit board's face stays in shadow, and its light escapes round the edges and through the gaps,
+so each board has a thin warm rim (the theme's `accent`, the sun's orange) along its lower edge and its sawn ends, light glowing through its
+cracks, a little light wrapping round the lower half of its face, and, where its drop shadow was, a warm glow round the silhouette. The clock's
+board, straight above the sun, gets the most, and the side boards 80% of that; each side board's rim is strongest on the end that faces the
+sun. The strength is 0.2 (`SUN_STRENGTH` in `tools/make-bar-wood.py`; `--sun 0.6` is plainly visible, `--sun 0.9` tips toward
+neon, `--sun 0` is off). Because the faces are not lit, it costs the lettering almost nothing: where the lettering sits, its contrast moves by
+0.1 or less (cream on the left board 6.9:1 to 6.9:1, on the right 6.4:1 to 6.3:1, the gold clock 6.0:1 to 6.0:1), and the three boards keep the same brightness (median
+luminance 0.225, 0.230 and 0.230). An earlier version lit the faces from below, as a warm gradient with the grain relit, which cost 0.3 to 0.5 of
+that contrast and read as a lamp shining up at the wood; it was replaced. Because the boards are fixed pictures, each gets one strength, not a
+glow that follows the sun along its length. The light bar is not lit this way: its boards are the sign's own colours.
+
 **The colours.** Each colour on the bar has one job, so the eye goes where it should: the *wood* is charred and dark, with *oxblood*
 paint left on it in patches, and sits quietly under the sun; the *lettering* is the theme's cream (`foreground`), and so is the shown workspace's
 square, with the theme's deep rust (`selection`) as its number, so the active state is dark on cream where everything else is
@@ -349,7 +361,7 @@ License 1.1, by Natanael Gama), and loaded from there by the plugin, so no packa
 cannot be loaded, or on a vertical bar, the clock is lettered as the stock clock is. The clock's board is calmer than the other
 two (`LOOK` in `tools/make-bar-wood.py`: fewer cracks and a smoother surface), so the fine strokes of the lettering survive; all three boards of
 the dark bar share one brightness (the side boards are lifted by 1.7x, the clock board by 1.3x, which puts their median luminance on the same
-0.226) and one grain strength (0.5). The side boards were first lifted without lowering their grain, from the 0.95 it was tuned at on the
+0.226, before the sun described above) and one grain strength (0.5). The side boards were first lifted without lowering their grain, from the 0.95 it was tuned at on the
 darker boards, and the title and the right-hand icons were chewed up; 0.5 is where the lettering holds. The clock's board is also longer, since capitals in this face are wider. It is a clone like the workspaces: all four of the stock
 widget's files are copied, because it loads its calendar popup and its model from beside itself, and only `BarWidget.qml` is patched. Enabling it replaces the built-in and disabling it brings the built-in back; it refuses while another clone of the clock is
 enabled:
@@ -368,7 +380,7 @@ bare board that is the board over itself, which changes nothing; over a letter i
 grooved, which gives the lettering the wood's grain, so it looks painted on the board and not laid over it: wherever the board is
 darker than the board a few pixels above and below it (the grain runs along the bar, so that is where grain lines, cracks and pits are),
 the board is let through, a little, and the lettering gets the wood's dark lines across it while the cream between them stays bright.
-`grain` in `WornPaint.qml` (0.5) sets how much; 0 is off. At the shipped settings about 45% of the lettering's
+`grain` in `WornPaint.qml` (0.5) sets how much; 0 is off. At the shipped settings about 46% of the lettering's
 pixels are touched by grain (the lighter the board, the less the lettering bears: lower `grain` if it is too eaten), and bare board is not changed (both measured on software GL with `tools/preview-wear.sh`, which takes `GRAIN=` and
 `STRENGTH=`). The same overlay can also chip the lettering: `strength` in `WornPaint.qml` puts the board back over small flakes, stretched
 along the grain, where the paint would have worn off. It is off (0): at 0.4 it altered only about 3% more of the lettering than the grain
@@ -389,7 +401,7 @@ along the grain with ragged edges and pale lips, paint that wicks along the grai
 edges and the ends, and nails with rust streaked down the grain below them. It is original work: no photograph or film
 frame is sampled or traced. It needs numpy, scipy and Pillow, which Omarchy does not install, so the PNGs are committed
 and only changing the look needs them: `python -m venv /tmp/wood && /tmp/wood/bin/pip install numpy scipy pillow`, then
-`/tmp/wood/bin/python tools/make-bar-wood.py`.
+`/tmp/wood/bin/python tools/make-bar-wood.py` (`--sun STRENGTH` sets how strongly the sun backlights the dark bar's boards).
 
 **The bar itself.** `Bar.qml` and `BarModel.js` are generated by `plugins/sinners.bar/build.sh` from the bar installed
 with Omarchy plus `patches/0001-boards.patch` (eight small hunks). They are committed so the plugin installs from this

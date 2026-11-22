@@ -2,7 +2,9 @@
 """Draws the boards of the two Sinners bars as transparent PNGs: "dark" (plugins/sinners.bar), charred cypress with some of its
 oxblood paint left on it, and "light" (plugins/sinners.bar-light), the light warm-grey wood of the film's sign.
 
-usage: make-bar-wood.py [plugins-dir]        (default: this repo's plugins/)
+usage: make-bar-wood.py [--sun STRENGTH] [plugins-dir]        (default: this repo's plugins/)
+
+--sun backlights the dark bar's boards, as if by the low sun in the wallpaper behind them (see SUN). The default is 0.2; 0 is off.
 
 Needs numpy, scipy and Pillow, which Omarchy does not install. In a throwaway virtualenv:
 
@@ -65,10 +67,27 @@ SIGN_WOOD = lut([(q, tuple(c / 255 for c in rgb)) for q, rgb in
                  [(0.05, (106, 85, 72)), (0.25, (149, 127, 113)), (0.50, (173, 154, 139)), (0.75, (192, 174, 160)), (0.95, (211, 195, 181))]])
 SIGN_RED = (188 / 255, 54 / 255, 46 / 255)  # the red of the sign's lettering, #BC362E: the light bar's shown-workspace square
 
+# The sun is low in the middle of the wallpaper and the bar is at the top of the screen, so the sun is behind the boards and below them. A backlit
+# board's face is in shadow; the light escapes round its edges and through its gaps. So: a bright warm rim along the lower edge and the sawn ends,
+# light glowing through the cracks, a little light wrapping round the lower half of the face, and, in place of the drop shadow, a warm glow
+# round the silhouette. k: how much of the strength reaches the board (the clock's, straight above the sun, the most). end_l and end_r: how much
+# rim the board's left and right ends have, which is more on the end that faces the sun. SUN_STRENGTH (--sun) is the default 0.2; 0 is off.
+SUN_RGB = theme_colour("accent")            # the sun's orange, #FB7407
+SUN_STRENGTH = 0.2
+SUN = {"left": dict(k=0.8, end_l=0.3, end_r=1.0), "center": dict(k=1.0, end_l=0.7, end_r=0.7), "right": dict(k=0.8, end_l=1.0, end_r=0.3)}
+
+
+def sun_for(name, style):
+    """The sun's light on a board, or None when it is off or the style has none."""
+    if SUN_STRENGTH <= 0 or not style.get("sunlit"):
+        return None
+    return dict(glow=SUN_STRENGTH * SUN[name]["k"], end_l=SUN[name]["end_l"], end_r=SUN[name]["end_r"])
+
+
 # One look per bar. paint: whether any oxblood paint is left on the wood. graded: whether the sun-warming grade is applied (the sign's own
 # colours are not graded). relief: how strongly the grain and cracks are lit. cracks: board length per crack, in px, at weather 1.
 STYLES = {
-    "dark": dict(plugin="sinners.bar", look=LOOK, paint=True, graded=True, relief=0.9, cracks=900, lift=0.05),
+    "dark": dict(plugin="sinners.bar", look=LOOK, paint=True, graded=True, relief=0.9, cracks=900, lift=0.05, sunlit=True),
     # tone: each board's mean colour measured against the sign's wood (168, 148, 134); the left and right boards carry more cracks and
     # relief, which darken them, so they are lifted
     "light": dict(plugin="sinners.bar-light", look={"left": dict(tone=1.20), "right": dict(tone=1.20), "center": dict(tone=1.04, weather=0.35)},
@@ -106,7 +125,7 @@ def wood_canvas(rng, w, ragged_end=False, weather=1.0, style=STYLES["dark"]):
         hg = hg - 1.6 * grain_end
         worn = worn * smooth(0, 7, d)
     if not style["paint"]:
-        return rgb, hg, xl
+        return rgb, hg, xl, cr
     # the same wood with all its paint on it, and then the paint kept only where the patches say
     rgb_p, hg_p = rgb.copy(), hg.copy()
     paint(rgb_p, hg_p, np.clip(worn * 1.4, 0, 1), PAINT, rng, v, block=smooth(0.55, 0.95, cr), wear=1.0, opacity=0.92, wobble=1.0)
@@ -120,18 +139,38 @@ def wood_canvas(rng, w, ragged_end=False, weather=1.0, style=STYLES["dark"]):
         t = np.ones_like(t)
     rgb = rgb * (1 - t[..., None]) + rgb_p * t[..., None]
     hg = hg * (1 - t) + hg_p * t
-    return rgb, hg, xl
+    return rgb, hg, xl, cr
 
 
-def lit(rgb, hg, tone=1.0, weather=1.0, style=STYLES["dark"]):
-    """Light it from above and left, as the mockups were, and warm it toward the sun (not the light bar's: it keeps the sign's colours).
-    tone and weather: see LOOK."""
+def _backlight(sun, cr, w, xl=None, end=0.0):
+    """How much of the sun's light reaches the board's face, as an alpha map (BH x w) for lit() to screen in: a rim a few pixels deep along the
+    lower edge, a little light wrapping round the lower half of the face, light through the cracks (with a small bloom), and, on a cap, a rim
+    along the sawn end (end is how much of it: more on the end that faces the sun)."""
+    Y = np.arange(BH, dtype=np.float32)[:, None]
+    bottom = smooth(6.0, 0.0, BH - 1 - Y)
+    wrap = 0.12 * smooth(0.40, 1.0, Y / (BH - 1)) ** 2
+    crack = np.clip(0.9 * cr + 0.35 * gaussian_filter(cr, 1.2), 0, 1)
+    a = 0.85 * bottom + wrap + crack
+    if xl is not None and end > 0:
+        X = np.arange(w, dtype=np.float32)[None, :]
+        a = a + end * 0.8 * smooth(7.0, 0.0, X - xl)
+    return np.clip(a * sun["glow"], 0, 1)
+
+
+def lit(rgb, hg, tone=1.0, weather=1.0, style=STYLES["dark"], sun_a=None):
+    """Light it from above and left, as the mockups were, and warm it toward the sun (not the light bar's: it keeps the sign's colours). tone and
+    weather: see LOOK. sun_a, if given, is the sun's light from behind (see _backlight): a screen blend, so it adds light and warms it."""
     out = shade(rgb, hg, strength=style["relief"] * (0.55 + 0.45 * weather))
     if not style["graded"]:
-        return np.clip(out * tone, 0, 1)
-    lum = (out * np.array([0.30, 0.59, 0.11], np.float32)).sum(-1, keepdims=True)
-    out = lum + (out - lum) * 0.8
-    return np.clip(out * np.array([1.0, 0.93, 0.84], np.float32) * 0.95 * tone, 0, 1)
+        out = np.clip(out * tone, 0, 1)
+    else:
+        lum = (out * np.array([0.30, 0.59, 0.11], np.float32)).sum(-1, keepdims=True)
+        out = lum + (out - lum) * 0.8
+        out = np.clip(out * np.array([1.0, 0.93, 0.84], np.float32) * 0.95 * tone, 0, 1)
+    if sun_a is not None:
+        a = sun_a[..., None] * np.asarray(SUN_RGB, np.float32)
+        out = np.clip(1 - (1 - out) * (1 - a), 0, 1)
+    return out
 
 
 def shadow_rows(w):
@@ -142,12 +181,21 @@ def shadow_rows(w):
     return np.repeat(np.clip(a, 0, 0.62)[:, None], w, axis=1)
 
 
-def assemble(rgb, board_alpha, shadow_alpha):
-    """Place the board's rows into the full-height strip, with its shadow beneath. Returns RGBA uint8."""
+def spill_rows(w, glow):
+    """Alpha of the warm glow round a backlit board's lower edge, which takes the place of its shadow: brightest at the edge, fading downward."""
+    n = H - (TOP_PX + BH)
+    t = np.arange(n, dtype=np.float32) / n
+    a = glow * 1.1 * (1 - t) ** 1.6
+    return np.repeat(np.clip(a, 0, 0.6)[:, None], w, axis=1)
+
+
+def assemble(rgb, board_alpha, shadow_alpha, shadow_rgb=(0.0, 0.0, 0.0)):
+    """Place the board's rows into the full-height strip, with its shadow (black) or its glow (the sun's colour) beneath. Returns RGBA uint8."""
     w = rgb.shape[1]
     out = np.zeros((H, w, 4), np.float32)
     out[TOP_PX:TOP_PX + BH, :, :3] = rgb
     out[TOP_PX:TOP_PX + BH, :, 3] = board_alpha
+    out[TOP_PX + BH:, :, :3] = np.asarray(shadow_rgb, np.float32)
     out[TOP_PX + BH:, :, 3] = shadow_alpha
     return (np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8)
 
@@ -156,8 +204,11 @@ def body(name, wlog, seed, style=STYLES["dark"]):
     rng = np.random.default_rng(seed)
     w = wlog * SS
     look = {**DEFAULT_LOOK, **style["look"].get(name, {})}
-    rgb, hg, _ = wood_canvas(rng, w, weather=look["weather"], style=style)
-    rgb = lit(rgb, hg, look["tone"], look["weather"], style)
+    sun = sun_for(name, style)
+    rgb, hg, _, cr = wood_canvas(rng, w, weather=look["weather"], style=style)
+    rgb = lit(rgb, hg, look["tone"], look["weather"], style, _backlight(sun, cr, w) if sun else None)
+    if sun:
+        return assemble(rgb, np.ones((BH, w), np.float32), spill_rows(w, sun["glow"]), SUN_RGB)
     return assemble(rgb, np.ones((BH, w), np.float32), shadow_rows(w))
 
 
@@ -171,18 +222,21 @@ def cap(name, seed, flip, target, style=STYLES["dark"]):
     rng = np.random.default_rng(seed)
     w = CAP_W * SS
     look = {**DEFAULT_LOOK, **style["look"].get(name, {})}
-    rgb, hg, xl = wood_canvas(rng, w, ragged_end=True, weather=look["weather"], style=style)
+    sun = sun_for(name, style)
+    rgb, hg, xl, cr = wood_canvas(rng, w, ragged_end=True, weather=look["weather"], style=style)
     X = np.arange(w, dtype=np.float32)[None, :]
     for ny in (8 * SS, BH - 8 * SS):                    # a pair of nails, 11 logical px in from the end
         nail(rgb, hg, END_AT * SS + 11 * SS + rng.normal(0, 1.0), ny + rng.normal(0, 1.0), rng, r=1.9 * SS)
-    rgb = lit(rgb, hg, look["tone"], look["weather"], style)
+    sun_a = _backlight(sun, cr, w, xl, sun["end_r" if flip else "end_l"]) if sun else None       # the cap is drawn with its end on the left, then flipped
+    rgb = lit(rgb, hg, look["tone"], look["weather"], style, sun_a)
     # match the body's tone, measured on the stretch that is opaque and clear of the sawn end's darkening and of the nails
     here = np.median(luma(rgb[:, 14:26]))                # columns, in this cap's 2x pixels: 7 to 13 logical px from its edge
     rgb = np.clip(rgb * float(np.clip(target / max(here, 1e-4), 0.5, 6.0)), 0, 1)
     inner = smooth(w, w - 16 * SS, X) * np.ones((BH, 1), np.float32)         # fades into the body underneath
     board_alpha = np.clip(X - xl + 0.5, 0, 1) * inner
-    sh = shadow_rows(w) * np.clip((X - END_AT * SS) / 6.0, 0, 1) * smooth(w, w - 16 * SS, X)
-    img = assemble(rgb, board_alpha, sh)
+    below = spill_rows(w, sun["glow"]) if sun else shadow_rows(w)
+    sh = below * np.clip((X - END_AT * SS) / 6.0, 0, 1) * smooth(w, w - 16 * SS, X)
+    img = assemble(rgb, board_alpha, sh, SUN_RGB if sun else (0.0, 0.0, 0.0))
     return img[:, ::-1] if flip else img
 
 
@@ -261,7 +315,13 @@ def square_outline():
 
 
 def main():
-    plugins = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugins")
+    global SUN_STRENGTH
+    args = sys.argv[1:]
+    if "--sun" in args:
+        i = args.index("--sun")
+        SUN_STRENGTH = float(args[i + 1])
+        del args[i:i + 2]
+    plugins = args[0] if args else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "plugins")
     for style_name, style in STYLES.items():
         out = os.path.join(plugins, style["plugin"], "wood")
         os.makedirs(out, exist_ok=True)
