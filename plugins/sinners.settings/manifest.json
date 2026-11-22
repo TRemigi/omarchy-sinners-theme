@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "sinners.settings",
+  "name": "Sinners Settings",
+  "version": "0.1.0",
+  "author": "Taylor Remigi",
+  "description": "Every setting of the Sinners theme in one place: a resonator guitar in the bar's tray drawer opens a panel with a tab for each of the theme's plugins (the bar, workspaces, clock, window title, embers and notifications). It installs, turns on and turns off those plugins, applies what it can as you change it, and holds what needs the shell restarted until one Save.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Sinners settings",
+    "description": "A resonator guitar that opens the settings of the Sinners theme",
+    "category": "Settings",
+    "allowMultiple": false,
+    "defaultSection": "tray"
+  }
+}

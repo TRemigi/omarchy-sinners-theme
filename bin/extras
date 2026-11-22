@@ -29,6 +29,9 @@
 #   bar-light the same, for plugins/sinners.bar-light: the bar on light boards, the warm grey wood of the film's sign, with dark
 #             lettering. Either bar can be installed and you can go from one to the other; uninstall switches back to the bar you
 #             had before either.
+#   settings  link the Sinners Settings plugin (plugins/sinners.settings) and enable it, in the tray's drawer on the bar: a resonator
+#             guitar that opens a panel for every setting of this theme and for installing and turning on the other plugins. It adds
+#             to the bar and replaces nothing, but it is the way to manage the rest, so it is named rather than part of "every extra".
 #
 # What each one changes, and what uninstall undoes:
 #   command   the symlink in ~/.local/bin
@@ -52,6 +55,8 @@
 #             `omarchy bar use`. The bar you had is remembered, and uninstall switches back to it (only if the
 #             bar is still this one) before it removes the link. Its widgets and their layout are not touched.
 #   bar-light the same, for the light bar. The bar you had is remembered only if it is not one of ours.
+#   settings  a symlink in ~/.config/omarchy/plugins, and the plugin's place in the tray section of the bar in shell.json, through
+#             `omarchy plugin enable sinners.settings --section tray`. Uninstall disables it and removes the link.
 #
 # Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
 #
@@ -74,7 +79,7 @@ BAR_ID=sinners.bar
 BAR_LIGHT_ID=sinners.bar-light
 BAR_DEFAULT=omarchy.bar
 EXTRAS=(command menu font embers)   # what a bare `install` does
-OPT_IN=(toasts workspaces clock title bar bar-light)   # only when named
+OPT_IN=(toasts workspaces clock title bar bar-light settings)   # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
 
@@ -97,6 +102,7 @@ Not part of "every extra"; name it to use it:
   title     draw the window title a step dimmer than the rest of the lettering, with a copy of Omarchy's window-title widget
   bar       replace Omarchy's bar with a bar of weathered wooden boards (a top or bottom bar; a side bar looks stock)
   bar-light the same on light boards, the warm grey wood of the film's sign, with dark lettering
+  settings  a resonator guitar in the bar's tray drawer that opens every setting of this theme, and installs and turns on the rest
 
 With no extras named, every extra above the blank line is used. Checks for all of them run before anything is changed.
 USAGE
@@ -361,21 +367,22 @@ plugin_check() {
   return 0
 }
 
-# plugin_install <name> <id> <what it does when enabled>
+# plugin_install <name> <id> <what it does when enabled> [placement for `omarchy plugin enable`...]
 plugin_install() {
   local name=$1 id=$2 note=$3
+  shift 3
   mkdir -p "$PLUGINS_DIR"
   ln -sfn "$(plugin_src "$id")" "$(plugin_dst "$id")"
   echo "$name: $(plugin_dst "$id") -> $(plugin_src "$id")"
   if shell_running; then
     omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-    if omarchy plugin enable "$id" >/dev/null 2>&1; then
+    if omarchy plugin enable "$id" "$@" >/dev/null 2>&1; then
       echo "$name: enabled. $note"
     else
-      echo "$name: linked, but could not enable it; run: omarchy plugin enable $id" >&2
+      echo "$name: linked, but could not enable it; run: omarchy plugin enable $id $*" >&2
     fi
   else
-    echo "$name: the shell is not running; after login run: omarchy plugin enable $id"
+    echo "$name: the shell is not running; after login run: omarchy plugin enable $id $*"
   fi
 }
 
@@ -629,6 +636,23 @@ bar_light_check()      { bar_check_id "$BAR_LIGHT_ID"; }
 bar_light_install()    { bar_install_id "$BAR_LIGHT_ID"; }
 bar_light_uninstall()  { bar_uninstall_id "$BAR_LIGHT_ID"; }
 bar_light_status()     { bar_status_id "$BAR_LIGHT_ID"; }
+
+# --- settings --------------------------------------------------------------------------------------------
+#
+# The settings panel: a bar widget that goes in the tray's drawer. It adds to the bar and replaces nothing. It does its work through
+# plugins/sinners.settings/bin/sinners-settings, which needs jq.
+
+settings_check() {
+  plugin_check sinners.settings Panel.qml PanelBody.qml PluginCard.qml SettingRow.qml SettingsState.qml GuitarIcon.qml Catalog.js bin/sinners-settings
+  command -v jq >/dev/null || fail "jq is needed by the settings panel"
+  [[ -x $(plugin_src sinners.settings)/bin/sinners-settings ]] || fail "plugins/sinners.settings/bin/sinners-settings is not executable"
+  return 0
+}
+settings_install() {
+  plugin_install settings sinners.settings "The guitar is in the bar's tray drawer; hover the chevron at the right of the bar. If it is not there, run: omarchy restart shell" --section tray
+}
+settings_uninstall() { plugin_uninstall settings sinners.settings ""; }
+settings_status()    { plugin_status settings sinners.settings; }
 
 # --- dispatch --------------------------------------------------------------------------------------------
 

@@ -23,6 +23,7 @@ Then the extras, which are separate from the theme and optional:
     bin/extras install workspaces  # likewise, because it replaces the workspaces widget: the painted square, see A bar of boards
     bin/extras install clock       # likewise, because it replaces the clock widget: the gold clock, see A bar of boards
     bin/extras install title       # likewise, because it replaces the window-title widget: the dimmer title, see A bar of boards
+    bin/extras install settings    # the settings panel, a guitar in the bar's tray drawer; it replaces nothing: see The settings panel
 
 | Extra | What it does |
 | --- | --- |
@@ -448,6 +449,68 @@ known: how it looks at your screen's scale. The cream is the stock widgets' own 
 the font were compared on the real board; how it sits in the live bar is not known. The charred boards were assembled from the shipped
 images over the real wallpaper and looked at, not seen in the shell. The gold clock was built, validated and parsed, and its extra run
 against a stub (including the refusal on a second clock clone); that the colour takes in the live clock is not known.
+
+## The settings panel
+
+`plugins/sinners.settings` is one place for every setting of the theme, and for installing, turning on and turning off the
+theme's other plugins, so none of it needs a command typed. It is a bar widget that goes in the **tray's drawer** (hover the
+chevron at the right of the bar), drawn as a resonator guitar standing upright: headstock, a straight neck, and a waisted body
+whose lower bout holds the round resonator, as a ring cut out of the wood with the cone's cap in the middle of it. It is drawn stout, with a thick neck and ring, and at about four fifths of the bar's height, because the bar's own icon button shrinks anything
+to a dozen pixels and a true-to-life guitar came out a few pixels wide. It takes the
+bar's lettering colour, so it is cream on the dark bar and rust on the light one. Click it and a panel opens under it.
+
+    bin/extras install settings    # link it, and put it in the tray drawer
+    bin/extras uninstall settings
+
+The panel has a tab for each of the theme's other plugins: **Bar**, **Workspaces**, **Clock**, **Window title**, **Embers** and
+**Notifications**. A dot on a tab says whether its plugin is on, and a filled one that it will be after Save. The top of each
+tab is a card with the plugin's state (on, off, or not installed) and one button: *Install*, *Turn on* or *Turn off*. A plugin that
+replaces one of Omarchy's own says so. The bar's tab has a choice of Omarchy's own bar, the dark boards and the light boards instead.
+Below the card are the plugin's settings, greyed while it is off:
+
+| Tab | Settings |
+| --- | --- |
+| Bar | position (top, bottom, left, right) and background (opaque, glassy, clear) |
+| Workspaces | none yet; it dresses itself to suit the bar it sits on |
+| Clock | the bar label and the alternate label (each a list of the formats, drawn as they would look now, or a format of your own), the first day of the week, birth year and life expectancy for the calendar's second bar |
+| Window title | the widest the title may be, in pixels |
+| Embers | embers on or off, smoke, brightness, amount, speed, frame rate limit and sharpness |
+| Notifications | burning on or off, and how long a toast burns |
+
+Sliders do not react to the mouse wheel: a wheel over one scrolls the tab, so scrolling a long tab never moves a setting by accident. Drag them,
+or click on the track.
+
+**What applies at once, and what waits for Save.** A setting that the plugin is already watching for is written to
+`~/.config/omarchy/shell.json` as it is changed, a slider included while it is still being dragged, and the bar or the wallpaper
+follows. That is every setting above. Anything that needs the shell restarted is **staged** instead: installing a plugin, turning one
+on or off, and choosing a bar. The footer lists what is staged, and one **Save** button does all of it and restarts the shell once;
+**Discard** drops it. When the shell is back the panel opens again with what happened (and, if a step failed, which one and why), and the
+steps that did not fail are kept. Where a setting is at its default the panel removes the field from `shell.json` rather than writing the
+default into it, so the file stays what you would have written yourself.
+
+Every step goes through `plugins/sinners.settings/bin/sinners-settings`, which the panel runs, so each can be run from a terminal too:
+`status` prints what is linked, on and set as JSON; `batch` writes settings; `apply` runs a plan of staged changes. Saving runs
+`apply` detached from the shell, because it restarts the shell and the panel is part of it. Installing goes through `bin/extras install`,
+so a plugin that is not linked yet is installed with the same checks and the same links (a clock is not installed while another plugin
+replaces the clock), and the bar you had before is remembered as it is there.
+
+Each tab ends with **Reset to defaults**, which asks first (the question defaults to Cancel). On yes it puts every setting of that tab
+back to the plugin's own default, by removing the field from `shell.json` (for the bar, by setting position to top and background to
+opaque), and the change shows at once like any other. It is greyed when nothing differs, or while the plugin is off. Whether a plugin is on,
+and which bar is chosen, are not settings and a reset leaves them as they are. Fields the panel does not manage, such as the clock's
+`verticalFormat`, are left alone.
+
+A plugin that is not on has no entry in `shell.json`, and an entry is what turns a plugin on, so the panel never writes settings for
+one; it greys them out until the plugin is on. Settings can only be changed for the Sinners plugins (the helper refuses any other id).
+
+`tools/check-settings.sh` tests what can be tested without the shell: the logic that decides what Save does (under node), the helper
+against a copy of `shell.json` and stand-ins for `omarchy` and `omarchy-shell` (reading, writing, a write refused, a plan run with one
+step failing, the shell restarted once), the manifest, and the QML with Qt 6's `qmllint`. With `--render` it also starts a throwaway
+quickshell on Qt's offscreen platform, puts the panel on screen with the real helper behind it, and writes a picture of each tab. **It has
+not been run in the live shell**, which needs a compositor: the panel was rendered that way, with Omarchy's own controls, and a slider
+change was seen to reach the file, but how the popup sits under the guitar, whether the drawer shows it at the right place at your
+font size, how the dropdown lists open inside the popup, and the restart and reopen after Save have not been seen. The guitar was drawn
+and looked at at several sizes, but not on the bar.
 
 ## Palette provenance
 

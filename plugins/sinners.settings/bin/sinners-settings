@@ -1,0 +1,319 @@
+#!/bin/bash
+# The command line behind the Sinners settings panel (plugins/sinners.settings). The panel is QML running inside
+# the Omarchy shell, and everything that touches the system goes through here, so each step can be run and tested
+# from a terminal, and so that the one step that restarts the shell is not a child of the shell it restarts.
+#
+#   sinners-settings status                 print one JSON object: what is linked and enabled, each plugin's settings, the bar
+#   sinners-settings batch '<json>'         write settings that apply at once (see below)
+#   sinners-settings apply [--reopen] FILE|--json PLAN   run the staged changes, restart the shell once, and record the result
+#
+# batch takes a JSON array of writes, each one of:
+#   {"kind":"plugin", "id":"sinners.embers", "key":"smoke", "value":0.4}   a field on the plugin's entry in plugins[]
+#   {"kind":"widget", "id":"sinners.clock",  "key":"format", "value":"HH:mm"}   a field on the widget's entry in bar.layout
+#   {"kind":"bar-position",   "value":"top"}                                  omarchy bar position
+#   {"kind":"bar-background", "value":"glassy"}                               omarchy bar background
+# A value of null removes the key, so the plugin's own default is back. The entry has to exist already: a plugin
+# that is not enabled has none, and this never makes one (in plugins[] an entry is what enables a plugin). Only
+# sinners.* ids are accepted.
+#
+# apply takes (as a file, or as the text after --json) {"ops":[{"type":"enable","id":...},{"type":"disable","id":...},{"type":"bar","id":...}]}:
+#   enable   omarchy plugin enable <id>, or `bin/extras install <extra>` first when the plugin is not linked yet
+#   disable  omarchy plugin disable <id>
+#   bar      omarchy bar use <id> (or `bin/extras install` when it is not linked yet); omarchy.bar goes back to the built-in
+# Every op runs even if an earlier one failed. If any succeeded, the shell is restarted once (`omarchy restart shell`),
+# because a plugin that replaces a built-in, or a different bar, is not always picked up by a shell that is running.
+# With --reopen the settings panel is opened again once the new shell answers. The outcome is written to
+# $STATE_DIR/last-apply.json for the panel to show.
+#
+# For testing: SINNERS_SHELL_JSON, SINNERS_PLUGINS_DIR, SINNERS_STATE_DIR and SINNERS_THEME_STATE (the file that names the
+# active theme) override the locations; SINNERS_NO_NOTIFY=1 sends no notification when a change fails; SINNERS_NO_SHELL=1 makes no call to the running shell and restarts nothing; and
+# SINNERS_DRY_RUN=1 prints the commands apply would run instead of running them.
+set -euo pipefail
+
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+THEME_DIR=$(cd "$(dirname "$SELF")/../../.." && pwd)
+PLUGINS_DIR=${SINNERS_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}
+SHELL_JSON=${SINNERS_SHELL_JSON:-$HOME/.config/omarchy/shell.json}
+TMP=""
+PLAN_TMP=""
+STATE_DIR=${SINNERS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-sinners-theme}
+THEME_STATE=${SINNERS_THEME_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/current/theme.name}
+DEFAULTS_JSON=${OMARCHY_PATH:-/usr/share/omarchy}/config/omarchy/shell.json
+NO_SHELL=${SINNERS_NO_SHELL:-0}
+DRY_RUN=${SINNERS_DRY_RUN:-0}
+PANEL_ID=sinners.settings
+
+# id -> the name bin/extras knows it by
+declare -A EXTRA=(
+  [sinners.bar]=bar
+  [sinners.bar-light]=bar-light
+  [sinners.workspaces]=workspaces
+  [sinners.active-window]=title
+  [sinners.clock]=clock
+  [sinners.embers]=embers
+  [sinners.notifications]=toasts
+  [sinners.settings]=settings
+)
+IDS=(sinners.bar sinners.bar-light sinners.workspaces sinners.active-window sinners.clock sinners.embers sinners.notifications sinners.settings)
+
+fail() { echo "sinners-settings: $*" >&2; exit 1; }
+
+shell_running() {
+  [[ $NO_SHELL == 1 ]] && return 1
+  [[ $(timeout 2 omarchy-shell shell ping 2>/dev/null) == ok ]]
+}
+
+# The file the settings are read from and written to: the user's, or Omarchy's defaults before the user has one.
+source_file() {
+  if [[ -s $SHELL_JSON ]]; then echo "$SHELL_JSON"; elif [[ -s $DEFAULTS_JSON ]]; then echo "$DEFAULTS_JSON"; else echo /dev/null; fi
+}
+
+plugin_dst() { echo "$PLUGINS_DIR/$1"; }
+plugin_src() { echo "$THEME_DIR/plugins/$1"; }
+linked_ours() { [[ -L $(plugin_dst "$1") && $(readlink -f "$(plugin_dst "$1")") == "$(plugin_src "$1")" ]]; }
+present() { [[ -e $(plugin_dst "$1") || -L $(plugin_dst "$1") ]]; }
+
+# --- status ----------------------------------------------------------------------------------------------------------
+
+cmd_status() {
+  local listing="[]" running=false linked="{}" id theme=""
+  if shell_running; then
+    running=true
+    listing=$(timeout 3 omarchy-shell shell listPlugins 2>/dev/null || echo "[]")
+    jq -e 'type == "array"' <<<"$listing" >/dev/null 2>&1 || listing="[]"
+  fi
+  for id in "${IDS[@]}"; do
+    linked=$(jq -c --arg id "$id" --argjson ours "$(linked_ours "$id" && echo true || echo false)" \
+      --argjson present "$(present "$id" && echo true || echo false)" '.[$id] = {ours: $ours, present: $present}' <<<"$linked")
+  done
+  [[ -r $THEME_STATE ]] && theme=$(<"$THEME_STATE")
+  local last=null
+  [[ -s $STATE_DIR/last-apply.json ]] && last=$(jq -c . "$STATE_DIR/last-apply.json" 2>/dev/null || echo null)
+
+  jq -S -n -c --argjson listing "$listing" --argjson running "$running" --argjson linked "$linked" \
+    --arg theme "$theme" --argjson last "$last" --slurpfile cfg "$(source_file)" --argjson ids "$(printf '%s\n' "${IDS[@]}" | jq -R . | jq -sc .)" '
+    def obj: if type == "object" then . else {} end;
+    def entryid: if type == "object" then (.id // "") elif type == "string" then . else "" end;
+    ($cfg[0] // {} | obj) as $c
+    | ($c.bar | obj) as $bar
+    | ($bar.layout | obj) as $layout
+    | (["left","centerBegin","center","centerEnd","right","tray"]) as $sections
+    | ([$sections[] as $s | ($layout[$s] // []) | if type == "array" then .[] else empty end]) as $widgets
+    | (($c.plugins // []) | if type == "array" then . else [] end) as $plugins
+    | (($c.disabledPlugins // []) | if type == "array" then . else [] end) as $disabled
+    | ($listing | map({key: .id, value: .}) | from_entries) as $known
+    | {
+        shellRunning: $running,
+        themeActive: ($theme == "sinners"),
+        bar: {
+          id: ($bar.id // "omarchy.bar"),
+          position: ($bar.position // "top"),
+          background: ($bar.background // (if $bar.transparent == true then "none" else "opaque" end))
+        },
+        plugins: ($ids | map(. as $id
+          | ([$widgets[] | select(entryid == $id)] | first // null) as $widget
+          | ([$plugins[] | select(entryid == $id)] | first // null) as $entry
+          | {key: $id, value: {
+              ours: $linked[$id].ours,
+              present: $linked[$id].present,
+              known: ($known[$id] != null),
+              enabled: (if $known[$id] != null then $known[$id].enabled
+                        elif $id == "sinners.bar" or $id == "sinners.bar-light" then (($bar.id // "omarchy.bar") == $id)
+                        else ($widget != null or ($entry != null and (($disabled | index($id)) == null))) end),
+              inBar: ($widget != null),
+              settings: (($widget // $entry // {}) | obj | del(.id))
+            }}) | from_entries),
+        lastApply: $last
+      }'
+}
+
+# --- batch: settings that apply at once ----------------------------------------------------------------------------------
+
+cmd_batch() {
+  local writes=${1:-}
+  [[ -n $writes ]] || fail "batch needs a JSON array of writes"
+  jq -e 'type == "array"' <<<"$writes" >/dev/null 2>&1 || fail "batch needs a JSON array of writes"
+
+  local config_writes
+  config_writes=$(jq -c '[.[] | select(.kind == "plugin" or .kind == "widget")]' <<<"$writes")
+  if [[ $config_writes != "[]" ]]; then
+    jq -e 'all(.[]; (.id | type == "string" and test("^sinners\\.[a-z-]+$")) and (.key | type == "string" and test("^[A-Za-z][A-Za-z0-9]*$")))' \
+      <<<"$config_writes" >/dev/null || fail "a write has an id that is not a sinners.* plugin, or a key that is not a plain name"
+    mkdir -p "$(dirname "$SHELL_JSON")"
+    TMP=$(mktemp "$SHELL_JSON.XXXXXX")
+    trap 'rm -f "$TMP"' EXIT
+    jq -S -e --argjson writes "$config_writes" '
+      def obj: if type == "object" then . else {} end;
+      def sections: ["left","centerBegin","center","centerEnd","right","tray"];
+      def put($w): if $w.value == null then del(.[$w.key]) else .[$w.key] = $w.value end;
+      def entryid: if type == "object" then (.id // "") elif type == "string" then . else "" end;
+      def asobj: if type == "string" then {id: .} else . end;
+      obj | .version = 1 | .bar = (.bar | obj) | .bar.layout = (.bar.layout | obj)
+      | .plugins = (if (.plugins | type) == "array" then .plugins else [] end)
+      | reduce $writes[] as $w (.;
+          if $w.kind == "plugin" then
+            if ([.plugins[] | select(entryid == $w.id)] | length) == 0 then error("\($w.id) is not enabled, so it has no settings to change")
+            else .plugins |= map(if entryid == $w.id then (asobj | put($w)) else . end) end
+          else
+            if ([sections[] as $s | (.bar.layout[$s] // []) | if type == "array" then .[] else empty end | select(entryid == $w.id)] | length) == 0
+              then error("\($w.id) is not on the bar, so it has no settings to change")
+            else reduce sections[] as $s (.; if (.bar.layout[$s] | type) == "array"
+                  then .bar.layout[$s] |= map(if entryid == $w.id then (asobj | put($w)) else . end) else . end) end
+          end)' "$(source_file)" >"$TMP" || fail "could not update $SHELL_JSON; nothing was changed"
+    mv "$TMP" "$SHELL_JSON"
+    trap - EXIT
+    if shell_running; then
+      timeout 3 omarchy-shell shell reloadConfig >/dev/null 2>&1 || timeout 5 omarchy-shell -q shell rescanPlugins >/dev/null 2>&1 || true
+    fi
+  fi
+
+  local kind value
+  while IFS=$'\t' read -r kind value; do
+    case $kind in
+      bar-position)
+        [[ $value =~ ^(top|bottom|left|right)$ ]] || fail "bad bar position '$value'"
+        omarchy bar position "$value" >/dev/null ;;
+      bar-background)
+        [[ $value =~ ^(opaque|glassy|none)$ ]] || fail "bad bar background '$value'"
+        omarchy bar background "$value" >/dev/null ;;
+    esac
+  done < <(jq -r '.[] | select(.kind == "bar-position" or .kind == "bar-background") | [.kind, .value] | @tsv' <<<"$writes")
+}
+
+# --- apply: the staged changes ---------------------------------------------------------------------------------------
+
+LOG=""
+RESULTS="[]"
+
+# run <op description> <command...>: runs the command, keeps its output, and records whether it worked.
+run() {
+  local what=$1 out status=0
+  shift
+  if [[ $DRY_RUN == 1 ]]; then
+    echo "would run: $*"
+    RESULTS=$(jq -c --arg what "$what" '. + [{op: $what, ok: true, message: "dry run"}]' <<<"$RESULTS")
+    return 0
+  fi
+  out=$("$@" 2>&1) || status=$?
+  LOG+="\$ $*"$'\n'"$out"$'\n'
+  out=$(tail -n 3 <<<"$out" | tr '\n' ' ' | sed 's/ *$//')
+  RESULTS=$(jq -c --arg what "$what" --arg out "$out" --argjson ok "$([[ $status == 0 ]] && echo true || echo false)" \
+    '. + [{op: $what, ok: $ok, message: $out}]' <<<"$RESULTS")
+  return "$status"
+}
+
+ensure_extras() { [[ -x $THEME_DIR/bin/extras ]] || fail "$THEME_DIR/bin/extras is missing or not executable"; }
+
+# Make the plugin ours to enable: linked, through the same installer as `bin/extras install`.
+op_enable() {
+  local id=$1 extra=${EXTRA[$1]:-}
+  [[ -n $extra ]] || { RESULTS=$(jq -c --arg id "$id" '. + [{op: ("enable " + $id), ok: false, message: "not a Sinners plugin"}]' <<<"$RESULTS"); return 1; }
+  if ! linked_ours "$id" && ! present "$id"; then
+    ensure_extras
+    # install links it, enables it (placing the settings widget in the tray's drawer), and for a bar switches to it
+    run "enable $id" "$THEME_DIR/bin/extras" install "$extra"
+  elif [[ $id == sinners.bar || $id == sinners.bar-light ]]; then
+    run "use $id" omarchy bar use "$id"
+  elif [[ $id == "$PANEL_ID" ]]; then
+    run "enable $id" omarchy plugin enable "$id" --section tray
+  else
+    run "enable $id" omarchy plugin enable "$id"
+  fi
+}
+
+op_disable() {
+  local id=$1
+  case $id in
+    sinners.bar | sinners.bar-light)
+      run "leave $id" omarchy bar reset ;;
+    *)
+      run "disable $id" omarchy plugin disable "$id" ;;
+  esac
+}
+
+cmd_apply() {
+  local reopen=0 plan=""
+  while (( $# > 0 )); do
+    case $1 in
+      --reopen) reopen=1; shift ;;
+      --json)   # the plan itself, not a file holding it
+        [[ -n ${2:-} ]] || fail "--json needs the plan"
+        mkdir -p "$STATE_DIR"
+        PLAN_TMP=$(mktemp "$STATE_DIR/plan.XXXXXX")
+        trap 'rm -f "$PLAN_TMP"' EXIT
+        printf '%s' "$2" >"$PLAN_TMP"
+        plan=$PLAN_TMP
+        shift 2 ;;
+      *) plan=$1; shift ;;
+    esac
+  done
+  [[ -n $plan && -r $plan ]] || fail "apply needs the plan, as a file or with --json"
+  jq -e '.ops | type == "array"' "$plan" >/dev/null 2>&1 || fail "$plan is not a plan ({\"ops\": [...]})"
+  jq -e 'all(.ops[]; (.type | IN("enable","disable","bar")) and (.id | type == "string" and test("^(sinners\\.[a-z-]+|omarchy\\.bar)$")))' "$plan" >/dev/null \
+    || fail "$plan has an op that is not enable, disable or bar on a sinners.* plugin"
+
+  mkdir -p "$STATE_DIR"
+  exec 9>"$STATE_DIR/apply.lock"
+  flock -n 9 || fail "another apply is running"
+
+  local started
+  started=$(date +%s)
+  write_state running
+
+  local type id
+  while IFS=$'\t' read -r type id; do
+    case $type in
+      enable) op_enable "$id" || true ;;
+      disable) op_disable "$id" || true ;;
+      bar)
+        if [[ $id == omarchy.bar ]]; then run "use the built-in bar" omarchy bar reset || true
+        else op_enable "$id" || true; fi ;;
+    esac
+  done < <(jq -r '.ops[] | [.type, .id] | @tsv' "$plan")
+
+  local worked restarted=false
+  worked=$(jq '[.[] | select(.ok)] | length' <<<"$RESULTS")
+  if (( worked > 0 )) && [[ $DRY_RUN != 1 && $NO_SHELL != 1 ]] && shell_running; then
+    # The shell dies in this step, and so does the panel that asked for it: this process was started detached for that.
+    if omarchy restart shell >/dev/null 2>&1; then
+      restarted=true
+      if (( reopen )); then
+        for _ in $(seq 1 50); do
+          shell_running && break
+          sleep 0.2
+        done
+        # The bar draws its widgets a moment after the shell answers.
+        sleep 1.5
+        timeout 3 omarchy-shell "$PANEL_ID" open >/dev/null 2>&1 || true
+      fi
+    else
+      RESULTS=$(jq -c '. + [{op: "restart the shell", ok: false, message: "omarchy restart shell failed; run it yourself"}]' <<<"$RESULTS")
+    fi
+  elif [[ $DRY_RUN == 1 ]]; then
+    echo "would run: omarchy restart shell"
+  fi
+
+  write_state done "$restarted"
+  [[ -n $LOG ]] && printf '%s' "$LOG" >"$STATE_DIR/last-apply.log"
+  if [[ $(jq '[.[] | select(.ok | not)] | length' <<<"$RESULTS") != 0 ]] && command -v notify-send >/dev/null && [[ $DRY_RUN != 1 && ${SINNERS_NO_NOTIFY:-0} != 1 ]]; then
+    notify-send -a "Sinners settings" "Some changes were not applied" "$(jq -r '[.[] | select(.ok | not) | .op + ": " + .message] | join("\n")' <<<"$RESULTS")" || true
+  fi
+  return 0
+}
+
+# write_state running | done <restarted>: last-apply.json, replaced whole.
+write_state() {
+  local state=$1 restarted=${2:-false} out
+  [[ $DRY_RUN == 1 ]] && return 0
+  out=$(jq -S -n -c --arg state "$state" --argjson at "$(date +%s)" --argjson results "$RESULTS" --argjson restarted "$restarted" \
+    '{state: $state, at: $at, restarted: $restarted, results: $results, failed: ([$results[] | select(.ok | not)] | length)}')
+  printf '%s\n' "$out" >"$STATE_DIR/last-apply.json.tmp"
+  mv "$STATE_DIR/last-apply.json.tmp" "$STATE_DIR/last-apply.json"
+}
+
+case "${1:-}" in
+  status) cmd_status ;;
+  batch) shift; cmd_batch "$@" ;;
+  apply) shift; cmd_apply "$@" ;;
+  *) sed -n '2,/^set -euo/p' "$SELF" | sed '$d' | sed 's/^# \{0,1\}//' >&2; exit 1 ;;
+esac
