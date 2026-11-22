@@ -4,6 +4,37 @@ An [Omarchy](https://omarchy.org/) theme based on the key art for *Sinners* (202
 Single dark theme: warm near-black, with the poster sun's gold, orange and red as the accent colors.
 The one cool color in the art, the teaser's steel blue, is used for blue and cyan.
 
+## Quick start
+
+The theme comes first, then one extra, and the settings panel does the rest.
+
+1. **Install and apply the theme** (the plugins below are dormant on any other theme):
+
+       ln -s "$PWD" ~/.config/omarchy/themes/sinners
+       omarchy theme set sinners
+
+2. **Install the settings panel**, the only extra you need to install by hand (it needs `jq`):
+
+       bin/extras install settings
+
+   It links the plugin into `~/.config/omarchy/plugins` and puts it in the bar's tray drawer. If the shell is not running it says so
+   and leaves the last step for after login. If the guitar does not show up in step 3, run `omarchy restart shell`.
+
+3. **Open it.** Hover the chevron at the right of the bar to open the tray drawer, and click the guitar. The panel has a tab for each of
+   the theme's plugins (the bar, workspaces, clock, window title, embers and notifications).
+
+4. **Install the rest from the panel.** A plugin that is not installed has an *Install* button at the top of its tab, and one that is
+   installed but off has *Turn on*. For the bar, choose the dark or the light boards. These wait for **Save**, which does all of them
+   at once, restarts the shell once, and opens the panel again. Settings that can show at once, like the embers' sliders, apply as you
+   change them. No command needs to be typed from here on. Details: [The settings panel](#the-settings-panel).
+
+The unlock screen and the system font are not in the panel; they are the `command`, `menu` and `font` extras below.
+
+If the installer does not work for you, the same thing by hand:
+
+    ln -s "$PWD/plugins/sinners.settings" ~/.config/omarchy/plugins/sinners.settings
+    omarchy plugin enable sinners.settings --section tray
+
 ## Install
 
 Copy or link this directory into Omarchy's theme folder, then apply it:
