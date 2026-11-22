@@ -4,7 +4,7 @@
 -- below repeat hyprland_active_border and hyprland_inactive_border from colors.toml. Keep them in step;
 -- tools/check-hyprland.sh checks that they are. Omarchy drops every *.lua from a theme installed from a git
 -- repo (a symlink to your own working copy is exempt), so on such an install the generated plain border is
--- used instead and there is no glow. Nothing breaks.
+-- used instead and there is no glow, until `bin/extras install glow` puts this file back.
 
 local active_border_color = { colors = { "rgba(F9BD06ee)", "rgba(FB7407ee)", "rgba(E91A02ee)" }, angle = 45 }
 local inactive_border_color = "rgba(5A1F0Faa)"

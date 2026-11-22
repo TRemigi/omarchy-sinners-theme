@@ -4,11 +4,14 @@
 #   bin/extras install [extra...]     install the named extras, or every extra
 #   bin/extras uninstall [extra...]   undo the named extras, or every extra
 #   bin/extras status [extra...]      show what is installed
+#   bin/extras install --all          every extra, the opt-in ones too (the dark bar, not the light one)
 #
 # Extras (always handled in this order):
 #   command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
 #   menu      add Appearance > Sinners Unlock to the Omarchy menu (shown only while Sinners is the active theme)
 #   font      switch the system monospace font to iA Writer Mono S, remembering the font it replaces
+#   glow      the window borders and the warm glow round the focused window (the theme's hyprland.lua)
+#   neovim    the theme's own Neovim colorscheme, sinners.nvim (the theme's neovim.lua)
 #   embers    link the Embers shell plugin (plugins/sinners.embers) into ~/.config/omarchy/plugins and enable it
 #
 # One more extra is not in "every extra", and has to be named: it replaces something rather than adding to it.
@@ -39,6 +42,12 @@
 #   font      the system font, through `omarchy font set`; uninstall puts the previous font back, but only if
 #             the font is still iA Writer Mono S. If the font is missing, install adds its package
 #             (ttf-ia-writer) with `omarchy pkg add`, which asks for sudo. Uninstall never removes a package.
+#   glow      Omarchy leaves every .lua out of a theme installed from a git repo, so a GitHub install has no glow. This copies
+#   neovim    the file into the state directory (a copy, so a later `git pull` cannot change code that runs without you
+#             installing it again) and adds a hook, ~/.config/omarchy/hooks/theme-set.d/sinners-theme, that puts the copies
+#             into Omarchy's current theme each time Sinners is applied. On a theme that is your own copy (a symlink, or a
+#             directory that is not a clone) Omarchy loads the file itself and the hook does nothing. Uninstall removes the
+#             copy (and the hook, with the last copy) and applies the theme again, so Omarchy's own file is back.
 #   embers    a symlink in ~/.config/omarchy/plugins, and the plugin's entry in shell.json, through
 #             `omarchy plugin enable`. If the shell is not running, the link is made and the enable is left for
 #             you to run. Uninstall disables the plugin and removes the link; its settings stay in shell.json.
@@ -60,8 +69,8 @@
 #
 # Every check for every selected extra runs before anything is changed, so a refusal leaves your system as it was.
 #
-# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU, SINNERS_STATE_DIR, SINNERS_PLUGINS_DIR and SINNERS_SHELL_JSON
-# override the five locations.
+# For testing, SINNERS_LOCAL_BIN, SINNERS_USER_MENU, SINNERS_STATE_DIR, SINNERS_PLUGINS_DIR, SINNERS_SHELL_JSON,
+# SINNERS_HOOKS_DIR, SINNERS_THEMES_DIR, SINNERS_OMARCHY_CURRENT and SINNERS_NVIM_THEME override those locations.
 set -euo pipefail
 
 THEME_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
@@ -71,6 +80,13 @@ USER_MENU=${SINNERS_USER_MENU:-$HOME/.config/omarchy/extensions/omarchy-menu.jso
 STATE_DIR=${SINNERS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-sinners-theme}
 PLUGINS_DIR=${SINNERS_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}
 SHELL_JSON=${SINNERS_SHELL_JSON:-$HOME/.config/omarchy/shell.json}
+HOOKS_DIR=${SINNERS_HOOKS_DIR:-$HOME/.config/omarchy/hooks}
+THEMES_DIR=${SINNERS_THEMES_DIR:-$HOME/.config/omarchy/themes}
+OMARCHY_CURRENT=${SINNERS_OMARCHY_CURRENT:-$HOME/.local/state/omarchy/current}
+NVIM_THEME=${SINNERS_NVIM_THEME:-$HOME/.config/nvim/lua/plugins/theme.lua}
+LUA_STASH=$STATE_DIR/lua
+THEME_HOOK=$HOOKS_DIR/theme-set.d/sinners-theme
+THEME_HOOK_MARK="# Managed by the Sinners theme's bin/extras"
 FONT_NAME="iA Writer Mono S"
 FONT_PACKAGE=ttf-ia-writer
 FONT_STATE=$STATE_DIR/previous-font
@@ -78,7 +94,7 @@ BAR_STATE=$STATE_DIR/previous-bar
 BAR_ID=sinners.bar
 BAR_LIGHT_ID=sinners.bar-light
 BAR_DEFAULT=omarchy.bar
-EXTRAS=(command menu font embers)   # what a bare `install` does
+EXTRAS=(command menu font glow neovim embers)   # what a bare `install` does
 OPT_IN=(toasts workspaces clock title bar bar-light settings)   # only when named
 
 fail() { echo "install: $*" >&2; exit 1; }
@@ -88,11 +104,14 @@ usage() {
 Usage: bin/extras install [extra...]     install the named extras, or every extra
        bin/extras uninstall [extra...]   undo the named extras, or every extra
        bin/extras status [extra...]      show what is installed
+       bin/extras install --all          every extra below, the opt-in ones too (with the dark bar)
 
 Extras:
   command   symlink ~/.local/bin/omarchy-sinners-unlock, the unlock screen picker
   menu      add Appearance > Sinners Unlock to the Omarchy menu
   font      switch the system monospace font to iA Writer Mono S (uninstall restores the previous font)
+  glow      the theme's window borders and the warm glow round the focused window
+  neovim    the theme's own Neovim colorscheme, sinners.nvim
   embers    add the Embers shell plugin: sparks that climb past the sun on the wallpaper
 
 Not part of "every extra"; name it to use it:
@@ -104,7 +123,8 @@ Not part of "every extra"; name it to use it:
   bar-light the same on light boards, the warm grey wood of the film's sign, with dark lettering
   settings  a resonator guitar in the bar's tray drawer that opens every setting of this theme, and installs and turns on the rest
 
-With no extras named, every extra above the blank line is used. Checks for all of them run before anything is changed.
+With no extras named, every extra above the blank line is used; --all uses every extra (for install, the dark bar and not
+bar-light, since only one bar can be in use). Checks for all of them run before anything is changed.
 USAGE
 }
 
@@ -122,6 +142,14 @@ in_list() {
 select_extras() {
   local name extra
   SELECTED=()
+  if in_list --all "$@"; then
+    (( $# == 1 )) || fail "--all already means every extra; name extras or use --all, not both"
+    for extra in "${EXTRAS[@]}" "${OPT_IN[@]}"; do
+      [[ $ACTION == install && $extra == bar-light ]] && continue   # one bar at a time: --all installs the dark one
+      SELECTED+=("$extra")
+    done
+    return
+  fi
   if (( $# == 0 )); then
     SELECTED=("${EXTRAS[@]}")
     return
@@ -340,6 +368,120 @@ font_status() {
     echo "font: not active (current: $current; $FONT_NAME is not installed, install would add $FONT_PACKAGE)"
   fi
 }
+
+# --- glow, neovim ----------------------------------------------------------------------------------------
+#
+# The theme's hyprland.lua and neovim.lua. Omarchy stages neither from a theme installed from a git repo, and generates plain ones
+# in their place, so these extras put the theme's back: a copy of each in LUA_STASH, and a theme-set hook that copies them into
+# Omarchy's current theme whenever Sinners is applied. REAPPLY is set by an uninstall that took a file out of the current theme,
+# and run_all then applies the theme once, so Omarchy regenerates its own.
+
+REAPPLY=0
+
+# The same test omarchy-theme-set uses: a theme directory that is a clone, not your own copy, has its Lua left out.
+theme_from_git() { [[ ! -L $THEMES_DIR/sinners && -d $THEMES_DIR/sinners/.git ]]; }
+sinners_current() { [[ $(cat "$OMARCHY_CURRENT/theme.name" 2>/dev/null) == sinners ]]; }
+hook_is_ours() { [[ -f $THEME_HOOK ]] && grep -Fq "$THEME_HOOK_MARK" "$THEME_HOOK"; }
+
+write_hook() {
+  mkdir -p "${THEME_HOOK%/*}"
+  cat >"$THEME_HOOK" <<HOOK
+#!/bin/bash
+$THEME_HOOK_MARK (the glow and neovim extras). Remove with: bin/extras uninstall glow neovim
+#
+# Omarchy leaves the Lua files out of a theme installed from a git repo. While Sinners is the current theme, this puts back the
+# ones you installed with bin/extras, from the copies made then. On your own copy of the theme Omarchy loads them itself.
+[[ \${1:-} == sinners ]] || exit 0
+[[ \$(cat "$OMARCHY_CURRENT/theme.name" 2>/dev/null) == sinners ]] || exit 0
+[[ ! -L "$THEMES_DIR/sinners" && -d "$THEMES_DIR/sinners/.git" ]] || exit 0
+reload=0
+for file in "$LUA_STASH"/*.lua; do
+  [[ -f \$file ]] || continue
+  cmp -s "\$file" "$OMARCHY_CURRENT/theme/\${file##*/}" && continue
+  cp "\$file" "$OMARCHY_CURRENT/theme/" || continue
+  [[ \${file##*/} == hyprland.lua ]] && reload=1
+done
+(( reload )) && omarchy-restart-hyprctl
+exit 0
+HOOK
+}
+
+# lua_check <name> <file>
+lua_check() {
+  local file=$2
+  [[ -f $THEME_DIR/$file ]] || fail "$THEME_DIR/$file is missing"
+  if [[ -e $THEME_HOOK ]] && ! hook_is_ours; then
+    fail "$THEME_HOOK exists and is not this theme's hook; not touching it"
+  fi
+  return 0
+}
+
+# lua_install <name> <file> <what to do to see it>
+lua_install() {
+  local name=$1 file=$2 see=$3
+  mkdir -p "$LUA_STASH"
+  cp "$THEME_DIR/$file" "$LUA_STASH/$file"
+  write_hook
+  if ! theme_from_git; then
+    echo "$name: installed. Your theme is your own copy, so Omarchy loads $file itself; the hook steps in on a GitHub install."
+  elif sinners_current; then
+    cp "$LUA_STASH/$file" "$OMARCHY_CURRENT/theme/$file"
+    if [[ $file == hyprland.lua ]]; then omarchy-restart-hyprctl; fi
+    echo "$name: installed and applied. $see"
+  else
+    echo "$name: installed; it takes effect when you switch to Sinners"
+  fi
+}
+
+# lua_uninstall <name> <file>
+lua_uninstall() {
+  local name=$1 file=$2
+  if [[ ! -f $LUA_STASH/$file ]]; then
+    echo "$name: not installed"
+    return
+  fi
+  rm -- "${LUA_STASH:?}/${file:?}"
+  rmdir -- "${LUA_STASH:?}" 2>/dev/null || true
+  if [[ ! -d $LUA_STASH ]] && hook_is_ours; then rm -- "${THEME_HOOK:?}"; fi
+  if theme_from_git && sinners_current; then REAPPLY=1; fi
+  echo "$name: removed"
+}
+
+# lua_status <name> <file>
+lua_status() {
+  local name=$1 file=$2
+  if [[ ! -f $LUA_STASH/$file ]]; then
+    if theme_from_git; then echo "$name: not installed"
+    else echo "$name: not installed (not needed: your theme is your own copy, so Omarchy loads $file itself)"; fi
+    return
+  fi
+  if ! cmp -s "$LUA_STASH/$file" "$THEME_DIR/$file"; then
+    echo "$name: installed, but the theme's $file has changed since; run: bin/extras install $name"
+  elif ! theme_from_git; then
+    echo "$name: installed (your theme is your own copy, so Omarchy loads $file itself)"
+  elif ! sinners_current; then
+    echo "$name: installed; it takes effect when you switch to Sinners"
+  elif cmp -s "$LUA_STASH/$file" "$OMARCHY_CURRENT/theme/$file"; then
+    echo "$name: installed and active"
+  else
+    echo "$name: installed, but not in the current theme yet; run: omarchy theme set sinners"
+  fi
+}
+
+glow_check()       { lua_check glow hyprland.lua; }
+glow_install()     { lua_install glow hyprland.lua "The focused window glows."; }
+glow_uninstall()   { lua_uninstall glow hyprland.lua; }
+glow_status()      { lua_status glow hyprland.lua; }
+
+neovim_check() {
+  lua_check neovim neovim.lua
+  [[ -e $NVIM_THEME ]] ||
+    echo "neovim: note: $NVIM_THEME is missing, so your Neovim does not load Omarchy's theme file; this extra has no effect there" >&2
+  return 0
+}
+neovim_install()   { lua_install neovim neovim.lua "Restart Neovim; the first start downloads sinners.nvim."; }
+neovim_uninstall() { lua_uninstall neovim neovim.lua; }
+neovim_status()    { lua_status neovim neovim.lua; }
 
 # --- plugins: embers, toasts -----------------------------------------------------------------------------
 #
@@ -659,11 +801,16 @@ settings_status()    { plugin_status settings sinners.settings; }
 run_all() {
   local action=$1 extra
   shift
+  ACTION=$action
   select_extras "$@"
   if [[ $action == install ]]; then
     for extra in "${SELECTED[@]}"; do "${extra//-/_}_check"; done   # every check first, so a refusal changes nothing
   fi
   for extra in "${SELECTED[@]}"; do "${extra//-/_}_$action"; done
+  if (( REAPPLY )); then
+    echo "applying Sinners again, so Omarchy's own Lua files are back"
+    omarchy theme set sinners >/dev/null 2>&1 || echo "could not apply the theme again; run: omarchy theme set sinners" >&2
+  fi
 }
 
 case "${1:-}" in
