@@ -464,7 +464,7 @@ lua_status() {
   elif cmp -s "$LUA_STASH/$file" "$OMARCHY_CURRENT/theme/$file"; then
     echo "$name: installed and active"
   else
-    echo "$name: installed, but not in the current theme yet; run: omarchy theme set sinners"
+    echo "$name: installed, but not in the current theme yet; run: bin/extras install $name"
   fi
 }
 
@@ -809,7 +809,9 @@ run_all() {
   for extra in "${SELECTED[@]}"; do "${extra//-/_}_$action"; done
   if (( REAPPLY )); then
     echo "applying Sinners again, so Omarchy's own Lua files are back"
-    omarchy theme set sinners >/dev/null 2>&1 || echo "could not apply the theme again; run: omarchy theme set sinners" >&2
+    # Applying the theme that is already current also steps to its next wallpaper; OMARCHY_THEME_SKIP_BACKGROUND keeps the one you have.
+    OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set sinners >/dev/null 2>&1 ||
+      echo "could not apply the theme again; run: OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set sinners" >&2
   fi
 }
 
