@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Draws the title in the style of the Sinners poster's title, as a transparent PNG.
 
-usage: lettering.py <out.png> [workdir] [word] [pointsize]      (word: OMARCHY, pointsize: 175)
+usage: lettering.py <out.png> [workdir] [word] [pointsize] [--wordmark LOGO.TXT]      (word: OMARCHY, pointsize: 175)
+
+With --wordmark, the letters are Omarchy's ASCII wordmark (/usr/share/omarchy/logo.txt) instead of the font, and word is
+ignored. Each character of the art is one column of the grid and two rows: a full block fills both, a half block one. The
+pixels are square, a column is pointsize/16.6 px wide, and the art keeps its own proportions; the treatment below is the same.
 
 Original work: Noto Sans Bold plus a procedural treatment, not the studio's logo. The style comes from measuring
 the poster's title: clean straight letters on one baseline, stems 0.195 of the cap height, torn-paint chips only
@@ -9,11 +13,17 @@ on the axis-aligned edges (stem sides and ends) while diagonals stay razor-clean
 neon lemon. Every size below is given for pointsize 175 and scales with the pointsize. It is deterministic.
 """
 import os, subprocess, sys, tempfile
-OUT = sys.argv[1]
-WORK = sys.argv[2] if len(sys.argv) > 2 else tempfile.mkdtemp(prefix='lettering.')
+args = sys.argv[1:]
+WORDMARK = None
+if '--wordmark' in args:
+    i = args.index('--wordmark')
+    WORDMARK = args[i + 1]
+    del args[i:i + 2]
+OUT = args[0]
+WORK = args[1] if len(args) > 1 else tempfile.mkdtemp(prefix='lettering.')
 os.makedirs(WORK, exist_ok=True)
-WORD = sys.argv[3] if len(sys.argv) > 3 else 'OMARCHY'
-PT = int(sys.argv[4]) if len(sys.argv) > 4 else 175
+WORD = args[2] if len(args) > 2 else 'OMARCHY'
+PT = int(args[3]) if len(args) > 3 else 175
 FONT = '/usr/share/fonts/noto/NotoSans-Bold.ttf'      # Noto Sans Bold, SIL Open Font License
 if not os.path.exists(FONT):
     sys.exit(f'lettering: font not found: {FONT} (install the noto-fonts package)')
@@ -40,18 +50,43 @@ def tail_threshold(img, frac):
         acc += counts.get(v, 0)
         if acc / total >= frac: return 100 * v / 255
     return 100.0
+def wordmark_grid(path):
+    """The ASCII wordmark as a plain PBM, one pixel per half character cell (black = ink, as PBM has it), and its size."""
+    if not os.path.exists(path):
+        sys.exit(f'lettering: wordmark not found: {path}')
+    lines = open(path, encoding='utf-8').read().rstrip('\n').split('\n')
+    halves = {'\u2588': (0, 1), '\u2580': (0,), '\u2584': (1,)}     # full block, upper half, lower half
+    cols, rows = max(map(len, lines)), 2 * len(lines)
+    grid = [[0] * cols for _ in range(rows)]
+    for r, line in enumerate(lines):
+        for c, ch in enumerate(line):
+            for h in halves.get(ch, ()):
+                grid[2 * r + h][c] = 1
+    if not any(map(any, grid)):
+        sys.exit(f'lettering: no block characters in {path}')
+    return f'P1\n{cols} {rows}\n' + '\n'.join(' '.join(map(str, row)) for row in grid) + '\n', cols, rows
+
 # 1. straight letters: same baseline, no rotation, no jitter
-adv = []
-for i, c in enumerate(WORD):
-    m('-background','none','-font',FONT,'-pointsize',str(PT),'-fill','white','label:'+c,w(f'g{i}.png'))
-    adv.append(tuple(size(w(f'g{i}.png'))))
-H = adv[0][1]; PAD = 30; track = round(TRACK * U)
-total = sum(a for a, _ in adv) + track * (len(WORD) - 1) + 2 * PAD
-cmd = ['-size', f'{total}x{H+2*PAD}', 'xc:black']; x = PAD
-for i in range(len(WORD)):
-    cmd += [w(f'g{i}.png'), '-geometry', f'+{x}+{PAD}', '-compose', 'Over', '-composite']; x += adv[i][0] + track
-m(*cmd, '-colorspace','Gray','-alpha','off','-trim','+repage','-bordercolor','black','-border',str(round(20*U)),
-  '-resize', f'{XSCALE}x100%!', w('word.png'))
+if WORDMARK:
+    pbm, cols, rows = wordmark_grid(WORDMARK)
+    open(w('wordmark.pbm'), 'w').write(pbm)
+    cell = PT / 16.6
+    # Enlarge with hard edges, then average down to the exact (fractional) size: square pixels, clean edges, no seams.
+    m(w('wordmark.pbm'), '-negate', '-filter', 'Point', '-resize', '1600%', '-filter', 'Box',
+      '-resize', f'{round(cols * cell)}x{round(rows * cell)}!', '-colorspace','Gray','-alpha','off',
+      '-bordercolor','black','-border',str(round(20*U)), w('word.png'))
+else:
+    adv = []
+    for i, c in enumerate(WORD):
+        m('-background','none','-font',FONT,'-pointsize',str(PT),'-fill','white','label:'+c,w(f'g{i}.png'))
+        adv.append(tuple(size(w(f'g{i}.png'))))
+    H = adv[0][1]; PAD = 30; track = round(TRACK * U)
+    total = sum(a for a, _ in adv) + track * (len(WORD) - 1) + 2 * PAD
+    cmd = ['-size', f'{total}x{H+2*PAD}', 'xc:black']; x = PAD
+    for i in range(len(WORD)):
+        cmd += [w(f'g{i}.png'), '-geometry', f'+{x}+{PAD}', '-compose', 'Over', '-composite']; x += adv[i][0] + track
+    m(*cmd, '-colorspace','Gray','-alpha','off','-trim','+repage','-bordercolor','black','-border',str(round(20*U)),
+      '-resize', f'{XSCALE}x100%!', w('word.png'))
 W, Hh = size(w('word.png'))
 def noise(seed, blur): return ['-seed',str(seed),'-size',f'{W}x{Hh}','xc:gray50','+noise','Random','-colorspace','Gray','-blur',f'0x{blur*U:.2f}','-auto-level']
 # 2. ragged edges: erosion confined to a thin band along the edges, and gated into patches so most edges stay clean

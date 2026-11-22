@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds the unlock screen with the wallpaper's sun behind a Sinners-style title:
+# Builds the unlock screen with the wallpaper's sun behind the title: Omarchy's ASCII wordmark (/usr/share/omarchy/logo.txt)
+# given the poster title's treatment (neon lemon, amber stains, chipped edges; see lettering.py):
 #   unlock-sinners-sun.png, preview-unlock-sinners-sun.png
 #
 #   usage: tools/make-unlock-sun.sh [WIDTHxHEIGHT]      the screen size; default 1920x1200 (hyprctl monitors)
@@ -31,9 +32,10 @@ SCALE=$(awk -v w="$SW" -v h="$SH" 'BEGIN{a=w/3840; b=h/2160; print (a>b?a:b)}')
 TARGET=$(awk -v r="$SUN_R" -v s="$SCALE" -v ratio="$TITLE_RATIO" 'BEGIN{printf "%d", ratio*2*r*s+0.5}')
 ink_width() { magick "$1" -trim +repage -format %w info:; }
 PT=$(awk -v t="$TARGET" 'BEGIN{printf "%d", t/5.0+0.5}')
-python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT" >/dev/null
+WORDMARK=/usr/share/omarchy/logo.txt
+python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT" --wordmark "$WORDMARK" >/dev/null
 PT=$(awk -v p="$PT" -v t="$TARGET" -v w="$(ink_width "$T/title.png")" 'BEGIN{printf "%d", p*t/w+0.5}')
-python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT" >/dev/null
+python3 -I "$ROOT/tools/lettering.py" "$T/title.png" "$T/lettering" OMARCHY "$PT" --wordmark "$WORDMARK" >/dev/null
 echo "title: pointsize $PT, ink $(ink_width "$T/title.png")px wide (target $TARGET); the sun is $(awk -v r="$SUN_R" -v s="$SCALE" 'BEGIN{printf "%d", 2*r*s+0.5}')px"
 python3 -I "$ROOT/tools/sun-unlock.py" --screen "$SCREEN" --word "$T/title.png" --out "$ROOT/unlock-sinners-sun.png"
 
