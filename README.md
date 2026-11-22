@@ -2,11 +2,17 @@
 
 A dark [Omarchy](https://omarchy.org/) theme inspired by Ryan Coogler's *Sinners* (2025).
 
-![The Sinners wallpaper: a huge low sun over a red haze, with a lone farmhouse on the plain](backgrounds/1-sinners-sun.webp)
+![The Omarchy wordmark in the sun's gold, orange and red, from the theme's unlock screen](unlock.png)
 
-**Contents:** [The look](#the-look) · [What you get](#what-you-get) · [Quick start](#quick-start) ·
-[The plugins](#the-plugins) · [More installation options](#more-installation-options) · [Good to know](#good-to-know) ·
-[Under the hood](#under-the-hood)
+**Contents**
+
+- [The look](#the-look)
+- [What you get](#what-you-get)
+- [Quick start](#quick-start)
+- [The plugins](#the-plugins)
+- [More installation options](#more-installation-options)
+- [Good to know](#good-to-know)
+- [Under the hood](#under-the-hood)
 
 ## The look
 
